@@ -1,5 +1,5 @@
 # presubmit_chipwrangler_2024
-Data and code repository for chipwrangler brief comm.
+Data and code repository for the ChIP-wrangler manuscript.
 
 Code for generating Figures: <br>
 [Figure 1: ChIP-wrangler enables rigorous quantification of ChIP-seq signal](https://github.com/lapatel22/natgen_presubmit_2024/blob/master/Fig1_LP78_data.md) <br>
