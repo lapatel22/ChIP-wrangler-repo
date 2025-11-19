@@ -2,19 +2,21 @@
 """
 05_get_sequencing_stats.py
 Update sample_metadata.tsv with sequencing stats, spike-in ratios, QC flags,
-and normalized values based on BAM files in hg38, dm6, and sac3 directories.
+and normalized values based on BAM files in target and spike-in genomes.
 """
 
 import pandas as pd
 import subprocess
 import re
+import argparse
 from pathlib import Path
 
+
 def update_sample_metadata(
-    metadata_file: str = None,
-    target_dir: str = None,
-    dm6_dir: str = None,
-    sac3_dir: str = None,
+    user_dir: str,
+    target_species: str,
+    spike1_species: str,
+    spike2_species: str,
     samtools_path: str = "samtools",
     control_conditions: list = None
 ):
@@ -23,73 +25,85 @@ def update_sample_metadata(
     and normalized values.
 
     Parameters:
-        metadata_file: path to existing sample_metadata.tsv
-        target_dir: path to BAMs for the main genome (hg38)
-        dm6_dir: path to dm6 BAMs
-        sac3_dir: path to sac3 BAMs
-        samtools_path: path to samtools executable
-        control_conditions: list of control condition names for normalization
+        user_dir: Base directory containing sample_metadata and species subfolders.
+        target_species: Name of the primary genome (e.g. hg38).
+        spike1_species: First spike-in genome (e.g. dm6).
+        spike2_species: Second spike-in genome (e.g. sac3).
+        samtools_path: Path to samtools executable.
+        control_conditions: list of conditions used as normalization baseline.
     """
-    # Base directory is repo root
-    base_dir = Path(__file__).parent.parent
 
-    # Build paths if not provided
-    if metadata_file is None:
-        metadata_file = base_dir / "../sample_metadata.tsv"
-    if target_dir is None:
-        target_dir = base_dir / "../hg38_data/hg38_aligned"
-    if dm6_dir is None:
-        dm6_dir = base_dir / "../dm6_data/dm6_aligned"
-    if sac3_dir is None:
-        sac3_dir = base_dir / "../sac3_data/sac3_aligned"
+    user_dir = Path(user_dir)
 
-    metadata_file = Path(metadata_file)
-    target_dir = Path(target_dir)
-    dm6_dir = Path(dm6_dir)
-    sac3_dir = Path(sac3_dir)
+    # Required file
+    metadata_file = user_dir / "sample_metadata.tsv"
 
-    if not metadata_file.exists():
-        raise FileNotFoundError(f"Cannot find sample_metadata.tsv at {metadata_file}")
+    # Species directories follow naming convention: <species>_data/<species>_aligned
+    target_dir = user_dir / f"{target_species}_data" / f"{target_species}_aligned"
+    spike1_dir = user_dir / f"{spike1_species}_data" / f"{spike1_species}_aligned"
+    spike2_dir = user_dir / f"{spike2_species}_data" / f"{spike2_species}_aligned"
 
+    # Default control conditions
     if control_conditions is None:
         control_conditions = ["HelaS3_100sync_0inter"]
 
-    print(f"Reading metadata from: {metadata_file}")
-    df_meta = pd.read_csv(metadata_file, sep="\t")
+    # ================== Validate ==================
+    if not metadata_file.exists():
+        raise FileNotFoundError(f"Error: Cannot find sample_metadata.tsv at: {metadata_file}")
 
-    bam_files = list(target_dir.glob("*.bam"))
+    df_meta = pd.read_csv(metadata_file, sep="\t")
+    if df_meta.empty:
+        raise RuntimeError(f"ERROR: sample_metadata.tsv at {metadata_file} is EMPTY.")
+
+    print(f"Reading metadata from: {metadata_file}")
+
+    bam_files = list(target_dir.glob(f"*.bam"))
     if not bam_files:
-        raise FileNotFoundError(f"No BAM files found in {target_dir}")
+        raise FileNotFoundError(f"Warning: No BAM files found in {target_dir}")
 
     records = []
 
+    # ================== Process Samples ==================
     for bam in bam_files:
         sample_full = bam.stem
-        sample = re.sub(r"\.(hg38|dm6|sac3)$", "", sample_full)
 
-        # expected pattern: Cell_sync_inter_biorep_IP_techrep
-        match = re.match(r"^([A-Za-z0-9]+_[0-9]+sync_[0-9]+inter)_(\d+)_(\w+)_([0-9]+)$", sample)
+        # Strip species suffix
+        sample = re.sub(
+            rf"\.({target_species}|{spike1_species}|{spike2_species})$",
+            "",
+            sample_full
+        )
+
+        # Expected filename pattern:
+        match = re.match(
+            r"^([A-Za-z0-9]+_[0-9]+sync_[0-9]+inter)_(\d+)_(\w+)_([0-9]+)$",
+            sample
+        )
+
         if not match:
             print(f"⚠ Skipping unrecognized sample name: {sample_full}")
             continue
 
         condition_base, biorep, ip, techrep = match.groups()
-        bam_dm6 = dm6_dir / f"{sample}.dm6.bam"
-        bam_sac3 = sac3_dir / f"{sample}.sac3.bam"
 
-        if not (bam.exists() and bam_dm6.exists() and bam_sac3.exists()):
-            print(f"⚠ Missing BAM(s) for sample {sample} — skipping.")
+        bam_spike1 = spike1_dir / f"{sample}.{spike1_species}.bam"
+        bam_spike2 = spike2_dir / f"{sample}.{spike2_species}.bam"
+
+        if not (bam.exists() and bam_spike1.exists() and bam_spike2.exists()):
+            print(f"Warning: Missing BAM(s) for sample {sample} — skipping.")
             continue
 
-        # Count aligned reads
+        # Count reads using samtools view -c
         def count_reads(path):
-            result = subprocess.run([samtools_path, "view", "-c", str(path)],
-                                    capture_output=True, text=True)
+            result = subprocess.run(
+                [samtools_path, "view", "-c", str(path)],
+                capture_output=True, text=True
+            )
             return int(result.stdout.strip() or 0)
 
         count_target = count_reads(bam)
-        count_dm6 = count_reads(bam_dm6)
-        count_sac3 = count_reads(bam_sac3)
+        count_s1 = count_reads(bam_spike1)
+        count_s2 = count_reads(bam_spike2)
 
         records.append({
             "library.ID": sample,
@@ -97,74 +111,119 @@ def update_sample_metadata(
             "Biorep": biorep,
             "IP": ip,
             "TechRep": techrep,
-            "hg38_reads": count_target,
-            "dm6_reads": count_dm6,
-            "sac3_reads": count_sac3,
-            "dm6/hg38": count_dm6 / count_target if count_target > 0 else 0,
-            "sac3/hg38": count_sac3 / count_target if count_target > 0 else 0
+            f"{target_species}_reads": count_target,
+            f"{spike1_species}_reads": count_s1,
+            f"{spike2_species}_reads": count_s2,
+            f"{spike1_species}/{target_species}": count_s1 / count_target if count_target > 0 else 0,
+            f"{spike2_species}/{target_species}": count_s2 / count_target if count_target > 0 else 0,
         })
 
-    stats_df = pd.DataFrame(records)
-
-    if stats_df.empty:
+    seqstats = pd.DataFrame(records)
+    if seqstats.empty:
         raise RuntimeError(f"No valid samples parsed in {target_dir}")
 
-    # QC flag
+    # ================== QC Flags ==================
+    s1_ratio = f"{spike1_species}/{target_species}"
+    s2_ratio = f"{spike2_species}/{target_species}"
+
     def flag_low_high(row):
         flags = []
         if row["IP"] == "input":
-            if row["dm6/hg38"] < 0.001 or row["sac3/hg38"] < 0.001:
+            if row[s1_ratio] < 0.001 or row[s2_ratio] < 0.001:
                 flags.append("low_spike_ratio")
-            if row["dm6/hg38"] > 0.25 or row["sac3/hg38"] > 0.25:
+            if row[s1_ratio] > 0.25 or row[s2_ratio] > 0.25:
                 flags.append("high_spike_ratio")
         return ";".join(flags) if flags else ""
 
-    stats_df["QC_flag"] = stats_df.apply(flag_low_high, axis=1)
+    seqstats["QC_flag"] = seqstats.apply(flag_low_high, axis=1)
 
-    # IP/input ratios
-    inputs = stats_df.query("IP == 'input'")[["Condition", "Biorep", "dm6/hg38", "sac3/hg38"]]
-    inputs = inputs.rename(columns={"dm6/hg38": "dm6_input", "sac3/hg38": "sac3_input"})
-    stats_df = stats_df.merge(inputs, on=["Condition", "Biorep"], how="left")
-    stats_df["dm6 IP/input"] = stats_df["dm6/hg38"] / stats_df["dm6_input"]
-    stats_df["sac3 IP/input"] = stats_df["sac3/hg38"] / stats_df["sac3_input"]
+    # ================== Input Ratios ==================
+    inputs = seqstats.query("IP == 'input'")[["Condition", "Biorep", s1_ratio, s2_ratio]]
+    inputs = inputs.rename(columns={
+        s1_ratio: f"{spike1_species}_input",
+        s2_ratio: f"{spike2_species}_input",
+    })
 
-    # Control averages
+    seqstats = seqstats.merge(inputs, on=["Condition", "Biorep"], how="left")
+
+    seqstats[f"{spike1_species} IP/input"] = (
+        seqstats[s1_ratio] / seqstats[f"{spike1_species}_input"]
+    )
+
+    seqstats[f"{spike2_species} IP/input"] = (
+        seqstats[s2_ratio] / seqstats[f"{spike2_species}_input"]
+    )
+
+    # ================== Control Averages ==================
     control_means = (
-        stats_df
+        seqstats
         .query("Condition in @control_conditions and IP != 'input'")
-        .groupby("IP")[["dm6 IP/input", "sac3 IP/input"]]
+        .groupby("IP")[
+            [f"{spike1_species} IP/input", f"{spike2_species} IP/input"]
+        ]
         .mean()
         .rename(columns={
-            "dm6 IP/input": "dm6_control_avg",
-            "sac3 IP/input": "sac3_control_avg"
+            f"{spike1_species} IP/input": f"{spike1_species}_control_avg",
+            f"{spike2_species} IP/input": f"{spike2_species}_control_avg"
         })
         .reset_index()
     )
 
-    # Merge back to all samples based on IP type only
-    stats_df = stats_df.merge(control_means, on="IP", how="left")
+    seqstats = seqstats.merge(control_means, on="IP", how="left")
 
-    # Compute normalization to control averages
-    stats_df["dm6 IP/input control averaged"] = (
-        stats_df["dm6 IP/input"] / stats_df["dm6_control_avg"]
+    # Normalized values
+    seqstats[f"{spike1_species} IP/input control averaged"] = (
+        seqstats[f"{spike1_species} IP/input"] / seqstats[f"{spike1_species}_control_avg"]
     )
-    stats_df["sac3 IP/input control averaged"] = (
-        stats_df["sac3 IP/input"] / stats_df["sac3_control_avg"]
+    seqstats[f"{spike2_species} IP/input control averaged"] = (
+        seqstats[f"{spike2_species} IP/input"] / seqstats[f"{spike2_species}_control_avg"]
     )
 
-    # Merge into metadata
-    df_updated = df_meta.merge(stats_df, on="library.ID", how="left")
+    # ================== Merge Back to Metadata ==================
+    df_updated = df_meta.merge(seqstats, on="library.ID", how="left")
 
-    # Save updated metadata
     df_updated.to_csv(metadata_file, sep="\t", index=False)
-    print(f" Updated sample_metadata.tsv written with new columns.")
+    print("\nUpdated sample_metadata.tsv written.")
 
-    # Optional preview
     print("\n=== Updated metadata preview ===")
     print(df_updated.head().to_string(index=False))
 
-    return df_updated
+
+# ============================== CLI ==============================
+def main():
+    parser = argparse.ArgumentParser(
+        description="Update sample_metadata.tsv with sequencing stats and spike-in ratios."
+    )
+
+    parser.add_argument("--user_dir", required=True,
+                        help="Directory containing sample_metadata.tsv and *_data subfolders")
+
+    parser.add_argument("--target_species", required=True,
+                        help="Primary genome (e.g., hg38)")
+
+    parser.add_argument("--spike1_species", required=True,
+                        help="First spike-in genome (e.g., dm6)")
+
+    parser.add_argument("--spike2_species", required=True,
+                        help="Second spike-in genome (e.g., sac3)")
+
+    parser.add_argument("--samtools_path", default="samtools",
+                        help="Path to samtools executable")
+
+    parser.add_argument("--control_conditions", nargs="+",
+                        help="List of control conditions used for normalization")
+
+    args = parser.parse_args()
+
+    update_sample_metadata(
+        user_dir=args.user_dir,
+        target_species=args.target_species,
+        spike1_species=args.spike1_species,
+        spike2_species=args.spike2_species,
+        samtools_path=args.samtools_path,
+        control_conditions=args.control_conditions
+    )
 
 
 if __name__ == "__main__":
-    update_sample_metadata()
+    main()
