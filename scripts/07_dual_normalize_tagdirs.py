@@ -2,114 +2,139 @@
 import os
 import shutil
 import subprocess
+import argparse
 import pandas as pd
 from pathlib import Path
 
-# ======================== Config ========================
-# Paths
-aligned_dir = Path("../hg38_data/hg38_aligned")        # SAM files
-base_tagdir_dir = Path("../hg38_data/hg38_tagdirs")   # Original tagdirs
-normalized_tagdir_dir = Path("../hg38_data/hg38_normalized_tagdirs")  # Output normalized tagdirs
 
-# Genome
-target_genome = "hg38"
+# ======================== Parse Arguments ========================
+def get_args():
+    parser = argparse.ArgumentParser(description="Generate and normalize HOMER tag directories.")
+    parser.add_argument("--user_dir", required=True, help="Base project directory")
+    parser.add_argument("--target_species", required=True, help="Target genome species, e.g. hg38")
+    parser.add_argument("--spike1_species", required=True, help="Spike-in species 1")
+    parser.add_argument("--spike2_species", required=True, help="Spike-in species 2")
 
-# Suffixes
-sam_suffix = ".nosuffx2.sam"
-tagdir_suffix = ".hg38-tagdir"
-normalized_suffix = ".normalized-tagdir"
+    return parser.parse_args()
 
-# Seqstats file
-seqstats_file = Path("../sample_metadata.norm.tsv")
 
-# Column with normalization factor
-norm_col = "dual.normfactor.ipeff.adj"
+# ======================== Main Script ========================
+def main():
+    args = get_args()
 
-# Create output directory if it does not exist
-normalized_tagdir_dir.mkdir(parents=True, exist_ok=True)
+    user_dir = Path(args.user_dir).resolve()
+    target_species = args.target_species
 
-# ======================== Load seqstats ========================
-seqstats = pd.read_csv(seqstats_file, sep="\t")
+    # ======================== Config Paths ========================
+    aligned_dir = user_dir / f"{target_species}_data" / f"{target_species}_aligned"
+    base_tagdir_dir = user_dir / f"{target_species}_data" / f"{target_species}_tagdirs"
+    normalized_tagdir_dir = user_dir / f"{target_species}_data" / f"{target_species}_normalized_tagdirs"
 
-# Clean column names of hidden characters and whitespace
-seqstats.columns = (
-    seqstats.columns
-    .str.replace(r"[\u200b\u00a0\r\n]", "", regex=True)
-    .str.strip()
-    .str.replace(" ", ".", regex=False)
-)
+    # Suffixes
+    sam_suffix = ".nosuffx2.sam"
+    tagdir_suffix = f".{target_species}-tagdir"
+    normalized_suffix = ".normalized-tagdir"
 
-print("Available columns in seqstats:", seqstats.columns.tolist())
+    # Seqstats file
+    seqstats_file = user_dir / "sample_metadata.norm.tsv"
 
-# ======================== Step 1: Create tag directories from SAM files ========================
-if base_tagdir_dir.exists() and any(base_tagdir_dir.iterdir()):
-    print(f"📂 {base_tagdir_dir} already exists and is not empty. Skipping tag directory creation.")
-else:
-    base_tagdir_dir.mkdir(parents=True, exist_ok=True)
-    for sam_file in aligned_dir.glob(f"*{sam_suffix}"):
-        # Remove both .hg38 and .nosuffx2 to get the sample ID
-        sample_id = sam_file.name.replace(".hg38.nosuffx2.sam", "")
-        tagdir_name = f"{sample_id}{tagdir_suffix}"
-        tagdir_path = base_tagdir_dir / tagdir_name
+    # Column with normalization factor
+    norm_col = "dual.normfactor.ipeff.adj"
 
-        if tagdir_path.exists():
-            print(f"Tag directory already exists for {sample_id}, skipping makeTagDirectory.")
+    # Create output dir
+    normalized_tagdir_dir.mkdir(parents=True, exist_ok=True)
+
+    # ======================== Load seqstats ========================
+    seqstats = pd.read_csv(seqstats_file, sep="\t")
+
+    seqstats.columns = (
+        seqstats.columns
+        .str.replace(r"[\u200b\u00a0\r\n]", "", regex=True)
+        .str.strip()
+        .str.replace(" ", ".", regex=False)
+    )
+
+    print("Available columns in seqstats:", seqstats.columns.tolist())
+
+    # ======================== Step 1: Create tagdirs ========================
+    if base_tagdir_dir.exists() and any(base_tagdir_dir.iterdir()):
+        print(f"{base_tagdir_dir} exists and is not empty — skipping tagdir creation.")
+    else:
+        base_tagdir_dir.mkdir(parents=True, exist_ok=True)
+        for sam_file in aligned_dir.glob(f"*{sam_suffix}"):
+
+            sample_id = sam_file.name.replace(f".{target_species}.nosuffx2.sam", "")
+            tagdir_name = f"{sample_id}{tagdir_suffix}"
+            tagdir_path = base_tagdir_dir / tagdir_name
+
+            if tagdir_path.exists():
+                print(f"Tagdir already exists for {sample_id}, skipping.")
+                continue
+
+            print(f" Creating tagdir for {sample_id}...")
+
+            cmd = [
+                "makeTagDirectory",
+                str(tagdir_path),
+                str(sam_file),
+                "-genome", target_species,
+                "-checkGC",
+                "-fragLength", "150",
+            ]
+
+            try:
+                subprocess.run(cmd, check=True)
+                print(f"Created {tagdir_name}")
+            except subprocess.CalledProcessError as e:
+                print(f" Failed to create tagdir for {sample_id}: {e}")
+
+    # ======================== Step 2: Normalize tagdirs ========================
+    for tagdir in base_tagdir_dir.glob(f"*{tagdir_suffix}"):
+        sample_id = tagdir.name.replace(tagdir_suffix, "")
+
+        if sample_id not in seqstats["library.ID"].values:
+            print(f" Sample {sample_id} missing in seqstats metadata — skipping.")
             continue
 
-        print(f"🧬 Creating tag directory for {sample_id}...")
-        cmd = [
-            "makeTagDirectory",
-            str(tagdir_path),
-            str(sam_file),
-            "-genome", target_genome,
-            "-checkGC",
-            "-fragLength", "150",
-        ]
-        try:
-            subprocess.run(cmd, check=True)
-            print(f"Created {tagdir_name}")
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to create tag directory for {sample_id}: {e}")
+        norm_factor = seqstats.loc[
+            seqstats["library.ID"] == sample_id, norm_col
+        ].values[0]
 
-# ======================== Step 2: Normalize tag directories ========================
-for tagdir in base_tagdir_dir.glob(f"*{tagdir_suffix}"):
-    # Remove .hg38-tagdir to match seqstats library.ID
-    sample_id = tagdir.name.replace(tagdir_suffix, "")
+        if pd.isna(norm_factor):
+            print(f" Norm factor for {sample_id} is NaN — skipping.")
+            continue
 
-    if sample_id not in seqstats["library.ID"].values:
-        print(f"Warning: Sample ID {sample_id} not found in seqstats, skipping.")
-        continue
+        normalized_tagdir_name = f"{sample_id}{normalized_suffix}"
+        normalized_tagdir_path = normalized_tagdir_dir / normalized_tagdir_name
 
-    norm_factor = seqstats.loc[seqstats["library.ID"] == sample_id, norm_col].values[0]
+        if normalized_tagdir_path.exists():
+            print(f"✓ Normalized tagdir already exists for {sample_id}, skipping.")
+            continue
 
-    if pd.isna(norm_factor):
-        print(f"Warning: Normalization factor for {sample_id} is NaN, skipping.")
-        continue
+        shutil.copytree(tagdir, normalized_tagdir_path)
 
-    # Copy to normalized output directory
-    normalized_tagdir_name = f"{sample_id}{normalized_suffix}"
-    normalized_tagdir_path = normalized_tagdir_dir / normalized_tagdir_name
-    if normalized_tagdir_path.exists():
-        print(f"Success: Normalized tag directory already exists for {sample_id}, skipping copy.")
-        continue
+        # Modify tagInfo.txt
+        taginfo_path = normalized_tagdir_path / "tagInfo.txt"
+        if taginfo_path.exists():
+            with open(taginfo_path, "r") as f:
+                lines = f.readlines()
 
-    shutil.copytree(tagdir, normalized_tagdir_path)
+            cols = lines[1].strip().split("\t")
+            original_val = float(cols[2])
+            new_val = original_val * norm_factor
+            cols[2] = str(new_val)
+            lines[1] = "\t".join(cols) + "\n"
 
-    # Modify tagInfo.txt
-    taginfo_path = normalized_tagdir_path / "tagInfo.txt"
-    if taginfo_path.exists():
-        with open(taginfo_path, "r") as f:
-            lines = f.readlines()
+            with open(taginfo_path, "w") as f:
+                f.writelines(lines)
 
-        # 2nd row (index 1), 3rd column (index 2)
-        cols = lines[1].strip().split("\t")
-        original_val = float(cols[2])
-        cols[2] = str(original_val * norm_factor)
-        lines[1] = "\t".join(cols) + "\n"
+            print(
+                f"🔧 Modified {sample_id}: factor={norm_factor}, "
+                f"original={original_val} → new={new_val}"
+            )
+        else:
+            print(f" tagInfo.txt missing in {normalized_tagdir_path}, skipping.")
 
-        with open(taginfo_path, "w") as f:
-            f.writelines(lines)
 
-        print(f"Modified: {sample_id}, factor {norm_factor}, original {original_val} → new {cols[2]}")
-    else:
-        print(f"Warning: tagInfo.txt not found in {normalized_tagdir_path}, skipping modification.")
+if __name__ == "__main__":
+    main()
