@@ -2,7 +2,7 @@
 """
 05_get_sequencing_stats.py
 Update sample_metadata.tsv with sequencing stats, spike-in ratios, QC flags,
-and normalized values based on BAM files in target and spike-in genomes.
+and normalized values based on per-species SAM files ending with .nosuffx2.sam.
 """
 
 import pandas as pd
@@ -22,78 +22,73 @@ def update_sample_metadata(
 ):
     """
     Update sample_metadata.tsv with sequencing stats, spike-in ratios, QC flags,
-    and normalized values.
+    and normalization values.
 
-    Parameters:
-        user_dir: Base directory containing sample_metadata and species subfolders.
-        target_species: Name of the primary genome (e.g. hg38).
-        spike1_species: First spike-in genome (e.g. dm6).
-        spike2_species: Second spike-in genome (e.g. sac3).
-        samtools_path: Path to samtools executable.
-        control_conditions: list of conditions used as normalization baseline.
+    All required SAMs must follow naming:
+
+        <sample>.<species>.nosuffx2.sam
+
+    The <sample> portion must match:
+        Cell_sync_inter_biorep_IP_techrep
     """
-
     user_dir = Path(user_dir)
 
-    # Required file
-    metadata_file = user_dir / "sample_metadata.tsv"
+    # ---------------- Required input file ----------------
+    metadata_file = user_dir / "sample_names.tsv"
+    if not metadata_file.exists():
+        raise FileNotFoundError(f"Error: sample_names.tsv not found at {metadata_file}")
 
-    # Species directories follow naming convention: <species>_data/<species>_aligned
+    df_meta = pd.read_csv(metadata_file, sep="\t")
+    if df_meta.empty:
+        raise RuntimeError(f"ERROR: sample_names.tsv at {metadata_file} is EMPTY.")
+
+    print(f"Reading metadata from: {metadata_file}")
+
+    # ---------------- Species folders ----------------
     target_dir = user_dir / f"{target_species}_data" / f"{target_species}_aligned"
     spike1_dir = user_dir / f"{spike1_species}_data" / f"{spike1_species}_aligned"
     spike2_dir = user_dir / f"{spike2_species}_data" / f"{spike2_species}_aligned"
 
-    # Default control conditions
     if control_conditions is None:
         control_conditions = ["HelaS3_100sync_0inter"]
 
-    # ================== Validate ==================
-    if not metadata_file.exists():
-        raise FileNotFoundError(f"Error: Cannot find sample_metadata.tsv at: {metadata_file}")
-
-    df_meta = pd.read_csv(metadata_file, sep="\t")
-    if df_meta.empty:
-        raise RuntimeError(f"ERROR: sample_metadata.tsv at {metadata_file} is EMPTY.")
-
-    print(f"Reading metadata from: {metadata_file}")
-
-    bam_files = list(target_dir.glob(f"*.bam"))
-    if not bam_files:
-        raise FileNotFoundError(f"Warning: No BAM files found in {target_dir}")
+    # ---------------- Gather SAMs ----------------
+    sam_files = list(target_dir.glob("*.nosuffx2.sam"))
+    if not sam_files:
+        raise FileNotFoundError(f"Warning: No .nosuffx2.sam files found in {target_dir}")
 
     records = []
 
-    # ================== Process Samples ==================
-    for bam in bam_files:
-        sample_full = bam.stem
-
-        # Strip species suffix
-        sample = re.sub(
-            rf"\.({target_species}|{spike1_species}|{spike2_species})$",
-            "",
-            sample_full
-        )
-
-        # Expected filename pattern:
+    # ---------------- Process each sample ----------------
+    for sam in sam_files:
+        sample_full = sam.stem  # includes .<species>
+        # remove .species part only for parsing metadata
+        # ex: Hela_sync_inter_1_input_1.hg38 -> drop ".hg38"
+        sample = re.sub(rf"\.{target_species}.nosuffx2$", "", sample_full)
+   #     print(sample)
+        # Expected naming pattern
         match = re.match(
             r"^([A-Za-z0-9]+_[0-9]+sync_[0-9]+inter)_(\d+)_(\w+)_([0-9]+)$",
             sample
         )
 
         if not match:
-            print(f"⚠ Skipping unrecognized sample name: {sample_full}")
+            print(f"Warning: Skipping unrecognized sample name: {sample_full}")
             continue
 
         condition_base, biorep, ip, techrep = match.groups()
 
-        bam_spike1 = spike1_dir / f"{sample}.{spike1_species}.bam"
-        bam_spike2 = spike2_dir / f"{sample}.{spike2_species}.bam"
+        # Build corresponding spike-in SAM paths
+      #  print(sam)
+        sam_target = target_dir / f"{sample}.{target_species}.bam"
+        sam_spike1 = spike1_dir / f"{sample}.{spike1_species}.bam"
+        sam_spike2 = spike2_dir / f"{sample}.{spike2_species}.bam"
 
-        if not (bam.exists() and bam_spike1.exists() and bam_spike2.exists()):
-            print(f"Warning: Missing BAM(s) for sample {sample} — skipping.")
+        if not (sam_target.exists() and sam_spike1.exists() and sam_spike2.exists()):
+            print(f" Missing SAM(s) for sample {sample} — skipping.")
             continue
 
-        # Count reads using samtools view -c
+        # Count reads
         def count_reads(path):
             result = subprocess.run(
                 [samtools_path, "view", "-c", str(path)],
@@ -101,9 +96,9 @@ def update_sample_metadata(
             )
             return int(result.stdout.strip() or 0)
 
-        count_target = count_reads(bam)
-        count_s1 = count_reads(bam_spike1)
-        count_s2 = count_reads(bam_spike2)
+        count_target = count_reads(sam_target)
+        count_s1 = count_reads(sam_spike1)
+        count_s2 = count_reads(sam_spike2)
 
         records.append({
             "library.ID": sample,
@@ -115,10 +110,11 @@ def update_sample_metadata(
             f"{spike1_species}_reads": count_s1,
             f"{spike2_species}_reads": count_s2,
             f"{spike1_species}/{target_species}": count_s1 / count_target if count_target > 0 else 0,
-            f"{spike2_species}/{target_species}": count_s2 / count_target if count_target > 0 else 0,
+            f"{spike2_species}/{target_species}": count_s2 / count_target if count_target > 0 else 0
         })
 
     seqstats = pd.DataFrame(records)
+ #   print(seqstats)
     if seqstats.empty:
         raise RuntimeError(f"No valid samples parsed in {target_dir}")
 
@@ -139,13 +135,21 @@ def update_sample_metadata(
 
     # ================== Input Ratios ==================
     inputs = seqstats.query("IP == 'input'")[["Condition", "Biorep", s1_ratio, s2_ratio]]
+
     inputs = inputs.rename(columns={
         s1_ratio: f"{spike1_species}_input",
         s2_ratio: f"{spike2_species}_input",
     })
 
-    seqstats = seqstats.merge(inputs, on=["Condition", "Biorep"], how="left")
+    # Merge with overwrite of duplicate columns
+    seqstats = seqstats.merge(inputs, on=["Condition", "Biorep"], how="left", suffixes=("", "_old"))
 
+    # Drop any old (duplicate) columns from previous runs
+    for col in seqstats.columns:
+        if col.endswith("_old"):
+            seqstats.drop(columns=[col], inplace=True)
+
+    # Compute ratios
     seqstats[f"{spike1_species} IP/input"] = (
         seqstats[s1_ratio] / seqstats[f"{spike1_species}_input"]
     )
@@ -182,7 +186,7 @@ def update_sample_metadata(
     # ================== Merge Back to Metadata ==================
     df_updated = df_meta.merge(seqstats, on="library.ID", how="left")
 
-    df_updated.to_csv(metadata_file, sep="\t", index=False)
+    df_updated.to_csv("sample_metadata.tsv", sep="\t", index=False)
     print("\nUpdated sample_metadata.tsv written.")
 
     print("\n=== Updated metadata preview ===")

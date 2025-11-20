@@ -1,98 +1,98 @@
 #!/usr/bin/env python3
 import subprocess
 from pathlib import Path
+import argparse
 import pandas as pd
 import numpy as np
 
 # ======================== Config ========================
-experiment_id = "LP78"  # update for your experiment
-SNR_region = "tss"
 
-# Each species entry defines all needed parameters
-species_info = {
-    "dm6": {
-        "dir": "../dm6_data",
-        "genome": "dm6",
-        "frag_length": 150,
-        "hist_size": 4000,
-        "hist_bin": 25,
-        "histogram_dir": "../dm6_data/dm6_histograms"
-    },
-    "sac3": {
-        "dir": "../sac3_data",
-        "genome": "sacCer3",
-        "frag_length": 150,
-        "hist_size": 4000,
-        "hist_bin": 25,
-        "histogram_dir": "../sac3_data/sac3_histograms"
-    }
-}
+def make_tagdirs(
+    user_dir: str,
+    target_species: str,
+    spike1_species: str,
+    spike2_species: str,
+    SNR_region: str = "tss",
+    homer_path: str = "HOMER",
+    frag_length: int = 150,
+    hist_size: int = 4000,
+    hist_bin: int = 25,
+    experiment_id: str = "LP78"
+):
 
-# HOMER binaries
-make_tag_dir_bin = "makeTagDirectory"
-annotate_peaks_bin = "annotatePeaks.pl"
+    spike1_outdir = user_dir / f"{spike1_species}_data" / f"{spike1_species}_tagdirs"
+    spike2_outdir = user_dir / f"{spike2_species}_data" / f"{spike2_species}_tagdirs"
+    spike1_histogramdir = user_dir / f"{spike1_species}_data" / f"{spike1_species}_histograms"
+    spike2_histogramdir = user_dir / f"{spike2_species}_data" / f"{spike2_species}_histograms"
+    
+    spike_names = [spike1_species, spike2_species]
+    spike_outdirs = [spike1_outdir, spike2_outdir]
+    dictionary = {spike1_species: "dm6", spike2_species: "sacCer3"}
 
-# ======================== Step 1: Make tag directories ========================
-for sp, info in species_info.items():
-    aligned_dir = Path(info["dir"]) / f"{sp}_aligned"
-    tagdir_root = Path(info["dir"]) / f"{sp}_tagdirs"
-    tagdir_root.mkdir(parents=True, exist_ok=True)
+    # HOMER binaries
+    make_tag_dir_bin = "makeTagDirectory"
+    annotate_peaks_bin = "annotatePeaks.pl"
 
-    sam_files = sorted(aligned_dir.glob("*.nosuffx2.sam"))
-    if not sam_files:
-        print(f"No SAM files found in {aligned_dir}, skipping {sp}.")
-        continue
+    # ======================== Step 1: Make tag directories ========================
+    for spike_name, spike_outdir in zip(spike_names, spike_outdirs):
+    
+        aligned_dir = user_dir / f"{spike_name}_data" / f"{spike_name}_aligned"    
+        spike_outdir.mkdir(parents=True, exist_ok=True)
 
-    for sam in sam_files:
-        base = sam.stem.replace(".nosuffx2", "")
-        tagdir = tagdir_root / f"{base}-tagdir"
-        if tagdir.exists():
-            print(f"Skipping {tagdir} — already exists.")
+        sam_files = sorted(aligned_dir.glob("*.nosuffx2.sam"))
+        if not sam_files:
+            print(f"No SAM files found in {aligned_dir}, skipping {spike_name}.")
+            continue
+
+        for sam in sam_files:
+            base = sam.stem.replace(".nosuffx2", "")
+            tagdir = spike_outdir / f"{base}-tagdir"
+            if tagdir.exists():
+                print(f"Skipping {tagdir} — already exists.")
+                continue
+
+            cmd = [
+                make_tag_dir_bin,
+                str(tagdir),
+                str(sam),
+                "-genome", dictionary[spike_names],
+                "-fragLength", str(frag_length),
+                "-checkGC"
+            ]
+
+            print(f"Success: Creating tag directory for {base}")
+            subprocess.run(cmd, check=True)
+
+    # ======================== Step 2: Generate TSS metagene histogram ========================
+    for spike_name, spike_outdir in zip(spike_names, spike_outdirs):
+        tagdirs = sorted(spike_outdir.glob("*-tagdir"))
+
+        if not tagdirs:
+            print(f"Warning: No tag directories found for {spike_name}, skipping TSS histogram.")
+            continue
+
+        hist_dir = user_dir / f"{spike_name}_data" / f"{spike_name}_histograms"
+        hist_dir.mkdir(parents=True, exist_ok=True)
+
+        output_hist = hist_dir / f"hist_{SNR_region}_{spike_name}_{experiment_id}.txt"
+        if output_hist.exists():
+            print(f"Skipping TSS histogram — {output_hist} already exists.")
             continue
 
         cmd = [
-            make_tag_dir_bin,
-            str(tagdir),
-            str(sam),
-            "-genome", info["genome"],
-            "-fragLength", str(info["frag_length"]),
-            "-checkGC"
-        ]
+            annotate_peaks_bin,
+            str(SNR_region),
+            dictionary[spike_name],
+            "-size", str(hist_size),
+            "-hist", str(hist_bin),
+            "-d"
+        ] + [str(td) for td in tagdirs]
 
-        print(f"Success: Creating tag directory for {base} ({sp})")
-        subprocess.run(cmd, check=True)
+        print(f"Success: Generating TSS histogram for {base}")
+        with open(output_hist, "w") as out_f:
+            subprocess.run(cmd, stdout=out_f, check=True)
 
-# ======================== Step 2: Generate TSS metagene histogram ========================
-for sp, info in species_info.items():
-    tagdir_root = Path(info["dir"]) / f"{sp}_tagdirs"
-    tagdirs = sorted(tagdir_root.glob("*-tagdir"))
-
-    if not tagdirs:
-        print(f"Warning: No tag directories found for {sp}, skipping TSS histogram.")
-        continue
-
-    hist_dir = Path(info["histogram_dir"])
-    hist_dir.mkdir(parents=True, exist_ok=True)
-
-    output_hist = hist_dir / f"hist_tss_{info['genome']}_{experiment_id}.txt"
-    if output_hist.exists():
-        print(f"Skipping TSS histogram — {output_hist} already exists.")
-        continue
-
-    cmd = [
-        annotate_peaks_bin,
-        str(SNR_region),
-        info["genome"],
-        "-size", str(info["hist_size"]),
-        "-hist", str(info["hist_bin"]),
-        "-d"
-    ] + [str(td) for td in tagdirs]
-
-    print(f"Success: Generating TSS histogram for {sp} ({info['genome']}): {output_hist}")
-    with open(output_hist, "w") as out_f:
-        subprocess.run(cmd, stdout=out_f, check=True)
-
-print("All tag directories and per-genome TSS histograms completed.")
+    print("All tag directories and per-genome TSS histograms completed.")
 
 # ======================== Helper Functions ========================
 
@@ -268,7 +268,6 @@ def clean_seqstats_columns(df):
     df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
 
     # Fix malformed concatenated columns
-    df.columns = df.columns.str.replace("sac3_control_avgdm6", "sac3_control_avg\tdm6", regex=False)
     df.columns = df.columns.str.replace(" ", "_")
 
     # Ensure consistent column order
@@ -288,14 +287,68 @@ def clean_seqstats_columns(df):
 
     return df
 
+# ======================== Argparse ========================
 
+def get_args():
+    parser = argparse.ArgumentParser(
+        description="Generate tag directories, histograms, and normalization factors for spike-in ChIP-seq."
+    )
+
+    parser.add_argument("--user_dir", required=True, type=Path,
+                        help="Base directory where species_data folders live.")
+    parser.add_argument("--target_species", required=True, type=str,
+                        help="Primary genome (e.g. hg38).")
+    parser.add_argument("--spike1_species", required=True, type=str,
+                        help="First spike-in species (e.g. dm6).")
+    parser.add_argument("--spike2_species", required=True, type=str,
+                        help="Second spike-in species (e.g. sacCer3).")
+
+    # Optional parameters
+    parser.add_argument("--SNR_region", default="tss", type=str,
+                        help="Region used for SNR estimation.")
+    parser.add_argument("--homer_path", default="HOMER", type=str,
+                        help="Path to HOMER installation.")
+    parser.add_argument("--frag_length", default=150, type=int)
+    parser.add_argument("--hist_size", default=4000, type=int)
+    parser.add_argument("--hist_bin", default=25, type=int)
+    parser.add_argument("--experiment_id", default="LP78", type=str)
+
+    return parser.parse_args()
 
 # ======================== Main ========================
 
 def main():
-    metadata_file = Path("../sample_metadata.tsv")
-    dm6_hist_file = Path(f"../dm6_data/dm6_histograms/hist_tss_dm6_{experiment_id}.txt")
-    sac3_hist_file = Path(f"../sac3_data/sac3_histograms/hist_tss_sacCer3_{experiment_id}.txt")
+    args = get_args()
+
+    user_dir = args.user_dir
+    target_species = args.target_species
+    spike1_species = args.spike1_species
+    spike2_species = args.spike2_species
+    SNR_region = args.SNR_region
+    homer_path = args.homer_path
+    frag_length = args.frag_length
+    hist_size = args.hist_size
+    hist_bin = args.hist_bin
+    experiment_id = args.experiment_id
+
+    # ---- Run tagdir + histogram creation ----
+    make_tagdirs(
+        user_dir=user_dir,
+        target_species=target_species,
+        spike1_species=spike1_species,
+        spike2_species=spike2_species,
+        SNR_region=SNR_region,
+        homer_path=homer_path,
+        frag_length=frag_length,
+        hist_size=hist_size,
+        hist_bin=hist_bin,
+        experiment_id=experiment_id
+    )
+
+    # ---- Continue with your existing processing code ----
+    metadata_file = user_dir / "sample_metadata.tsv"
+    dm6_hist_file = user_dir / f"{spike1_species}_data/{spike1_species}_histograms/hist_{SNR_region}_{spike1_species}_{experiment_id}.txt"
+    sac3_hist_file = user_dir / f"{spike2_species}_data/{spike2_species}_histograms/hist_{SNR_region}_{spike2_species}_{experiment_id}.txt"
 
     if not metadata_file.exists():
         raise FileNotFoundError(f"{metadata_file} not found.")
@@ -306,54 +359,42 @@ def main():
     seqstats = pd.read_csv(metadata_file, sep="\t")
 
     print("Processing dm6 histograms...")
-    hist_dm6_long = process_histograms(hist_dm6, "dm6")
+    hist_dm6_long = process_histograms(hist_dm6, spike1_species)
     dm6_signal = compute_auc(hist_dm6_long)
 
     print("Processing sacCer3 histograms...")
-    hist_sac3_long = process_histograms(hist_sac3, "sac3")
+    hist_sac3_long = process_histograms(hist_sac3, spike2_species)
     sac3_signal = compute_auc(hist_sac3_long)
 
     print("Merging with metadata and normalizing...")
-    seqstats_norm = normalize_and_merge(seqstats, dm6_signal, sac3_signal, control_pattern="HelaS3_100sync_0inter_")
+    seqstats_norm = normalize_and_merge(
+        seqstats, dm6_signal, sac3_signal,
+        control_pattern="HelaS3_100sync_0inter_"
+    )
 
-    # Save per-genome signal files (optional, for inspection)
     dm6_signal.to_csv("dm6_H3K9ac_signal.tsv", sep="\t", index=False)
     sac3_signal.to_csv("sac3_H3K9ac_signal.tsv", sep="\t", index=False)
 
-    # Save cleaned seqstats with new normalization factors
     seqstats_df = clean_seqstats_columns(seqstats_norm)
     seqstats_df.to_csv("seqstats_TSS_histone_signal.tsv", sep="\t", index=False)
     print(" Cleaned and saved seqstats_TSS_histone_signal.tsv")
 
-    # -------------------------------
-    # UPDATE ORIGINAL alignment_summary_final.tsv
-    # -------------------------------
-    # Keep only the columns we just added (new normalization factors)
-    new_cols = [
-        "library.ID",
-        "fly_ip_efficiency_norm",
-        "yeast_ip_efficiency_norm",
-        "dm6.normfactor.ipeff.adj",
-        "sac3.normfactor.ipeff.adj",
-        "dual.normfactor.ipeff.adj"
-    ]
+    updated_metadata = seqstats_norm[
+        [
+            "library.ID",
+            "fly_ip_efficiency_norm",
+            "yeast_ip_efficiency_norm",
+            "dm6.normfactor.ipeff.adj",
+            "sac3.normfactor.ipeff.adj",
+            "dual.normfactor.ipeff.adj",
+        ]
+    ].copy()
 
-    updated_metadata = seqstats_norm[new_cols].copy()
-    
-    # Normalize library.ID strings before merge to ensure exact match
     seqstats["library.ID"] = seqstats["library.ID"].astype(str).str.strip()
     updated_metadata["library.ID"] = updated_metadata["library.ID"].astype(str).str.strip()
 
-
-    # Debug check
-    print("\nMerging normalized columns back into metadata...")
-    print(f"  metadata IDs: {seqstats['library.ID'].nunique()}")
-    print(f"  normalized IDs: {updated_metadata['library.ID'].nunique()}")
-    print(f"  shared IDs: {len(set(seqstats['library.ID']) & set(updated_metadata['library.ID']))}")
-
     final_metadata = seqstats.merge(updated_metadata, on="library.ID", how="left")
-
-    final_metadata.to_csv("../sample_metadata.norm.tsv", sep="\t", index=False)
+    final_metadata.to_csv(f"{user_dir}/sample_metadata.norm.tsv", sep="\t", index=False)
     print("Success: Updated sample_metadata.norm.tsv with new normalization factors")
     
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ def generate_species_bams(
     output_dir = user_dir / "bams_chr_sep"
     filtered_dir = user_dir / "filtered_bams"
 
-    bamutil_path = "bam"       # bamUtil binary
+    bamutil_path = "/home/lahodge/miniconda3/bin/bam"       # bamUtil binary
     samtools_path = "samtools" # samtools binary
     suffix_to_remove = ".concat.nodup.bam"
 
@@ -56,7 +56,7 @@ def generate_species_bams(
         for fut in as_completed(futures):
             print(fut.result())
 
-    # ----------------------- Step 2: Split BAMs by chromosome -----------------------
+# ----------------------- Step 2: Split BAMs by chromosome -----------------------
     print("\n=== Step 2: Splitting BAMs by chromosome ===")
 
     filtered_bams = list(filtered_dir.glob("*.filtered.bam"))
@@ -64,9 +64,10 @@ def generate_species_bams(
     def split_bam(input_bam):
         input_bam = Path(input_bam)
         base = input_bam.stem.replace(".filtered", "")
-        output_prefix = output_dir / f"{base}.dedup."
+        output_prefix = output_dir / f"{base}."
+        log_file = output_dir / f"{base}.splitting.log"
 
-        sentinel_chrX = output_dir / f"{base}.dedup.chrX.bam"
+        sentinel_chrX = output_dir / f"{base}.chrX.bam"
         if sentinel_chrX.exists():
             return f"Skipping {base} (already split)"
 
@@ -76,21 +77,23 @@ def generate_species_bams(
             "--in", str(input_bam),
             "--out", str(output_prefix)
         ]
-        subprocess.run(cmd, check=True)
+        with open(log_file, "w") as log:
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=log, check=True)
         return f"Finished splitting {base}"
+        
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(split_bam, bam) for bam in filtered_bams]
         for fut in as_completed(futures):
             print(fut.result())
-
+    
     # ----------------------- Step 2b: Remove unwanted chromosomes -----------------------
     print("\n=== Step 2b: Removing unwanted contigs (alt, Un, random) ===")
 
     for bam in filtered_bams:
         base = bam.stem.replace(".filtered", "")
-        for bad_bam in output_dir.glob(f"{base}.dedup.chr*"):
-            if any(x in bad_bam.name for x in ["_alt", "Un", "random"]):
+        for bad_bam in output_dir.glob(f"{base}.chr*"):
+            if any(x in bad_bam.name for x in ["_alt", "Un", "random", "chrM"]):
                 print(f"Removing {bad_bam.name} (unwanted contig)")
                 bad_bam.unlink()
 
@@ -121,7 +124,7 @@ def generate_species_bams(
 
         # Move spike-in chromosome BAMs
         for species in [spike_species_1, spike_species_2] if spike2_present else [spike_species_1]:
-            for f in output_dir.glob(f"{base}.dedup.chr*_{species}.bam"):
+            for f in output_dir.glob(f"{base}.chr*_{species}.bam"):
                 f.rename(spike_chr_dir / f.name)
 
         outputs = {
@@ -136,7 +139,7 @@ def generate_species_bams(
             if species == target_species:
                 continue
 
-            spike_files = sorted(spike_chr_dir.glob(f"{base}.dedup.chr*_{species}.bam"))
+            spike_files = sorted(spike_chr_dir.glob(f"{base}.chr*_{species}.bam"))
             out_bam = outputs[species]
             if out_bam.exists():
                 print(f"Skipping {out_bam.name} (already exists)")
@@ -150,7 +153,7 @@ def generate_species_bams(
                            [str(f) for f in spike_files], check=True)
 
         # Merge target species
-        target_files = sorted(output_dir.glob(f"{base}.dedup.chr*.bam"))
+        target_files = sorted(output_dir.glob(f"{base}.chr*.bam"))
         out_bam = outputs[target_species]
         if out_bam.exists():
             print(f"Skipping {out_bam.name} (already exists)")
@@ -162,6 +165,7 @@ def generate_species_bams(
         print(f"Merging {target_species} BAMs for {base}")
         subprocess.run([samtools_path, "merge", str(out_bam)] +
                        [str(f) for f in target_files], check=True)
+
 
     # ----------------------- Step 4: Remove suffixes -----------------------
     print("\n=== Step 4: Removing species suffixes in final SAM ===")
