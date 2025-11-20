@@ -23,6 +23,8 @@ def parse_args():
 def generate_sample_qc_report(
     gc_stats_path: str,
     sample_metadata_path: str,
+    spike1_species: str,
+    spike2_species: str,
     gc_hi: float = 1.2,
     gc_lo: float = 0.8,
     norm_hi: float = 1.1,
@@ -58,14 +60,16 @@ def generate_sample_qc_report(
                     msg += "  **RED FLAG: GC high**"
                 elif ratio < gc_lo:
                     msg += "  **RED FLAG: GC low**"
+                else:
+                    msg += " ---> GC content acceptable"
 
             print(msg)
 
         # ---- QC FLAG ----
         if sid in meta_lookup.index:
             qc = meta_lookup.loc[sid, "QC_flag"]
-            qc_display = qc if pd.notna(qc) and qc != "" else "None"
-            print(f"  QC_flag: {qc_display}")
+            qc_display = qc if pd.notna(qc) and qc != "" else "within acceptable range"
+            print(f"  Spike-in/target ratio: {qc_display}")
         else:
             print("  QC_flag: NOT FOUND")
 
@@ -75,9 +79,9 @@ def generate_sample_qc_report(
             sac3_nf = meta_lookup.loc[sid, "sac3.normfactor.ipeff.adj"]
             dual_nf = meta_lookup.loc[sid, "dual.normfactor.ipeff.adj"]
 
-            print(f"  dm6 NF:  {dm6_nf:.3f}")
-            print(f"  sac3 NF: {sac3_nf:.3f}")
-            print(f"  dual NF: {dual_nf:.3f}")
+            print(f"  {spike1_species} Normalization factor:  {dm6_nf:.3f}")
+            print(f"  {spike2_species} Normalization factor:  {sac3_nf:.3f}")
+            print(f"  dual Normalization factor: {dual_nf:.3f}")
 
             # Out-of-range red flags
             dm6_low  = dm6_nf < norm_lo
@@ -94,6 +98,8 @@ def generate_sample_qc_report(
                 diff = abs(dm6_nf - sac3_nf) / ((dm6_nf + sac3_nf) / 2)
                 if diff > norm_diff_fraction:
                     print(f"    **WARNING: dm6 vs sac3 NF differ by >{norm_diff_fraction*100:.0f}%**")
+                elif diff < norm_diff_fraction:
+                    print(f"  Spike-in normalization factors in similar range")
         else:
             print("  Normalization factors: NOT FOUND")
 
@@ -250,7 +256,9 @@ def main():
         if metadata_norm_path.exists():
             generate_sample_qc_report(
                 gc_stats_path=combined_path,
-                sample_metadata_path=metadata_norm_path
+                sample_metadata_path=metadata_norm_path,
+                spike1_species=args.spike1_species,
+                spike2_species=args.spike2_species
             )
         else:
             print("WARNING: sample_metadata.norm.tsv not found → QC report skipped.")
