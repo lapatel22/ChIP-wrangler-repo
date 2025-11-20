@@ -4,6 +4,31 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 import argparse
+import sys
+from contextlib import contextmanager
+
+class Tee(object):
+    def __init__(self, *streams):
+        self.streams = streams
+    
+    def write(self, data):
+        for s in self.streams:
+            s.write(data)
+    
+    def flush(self):
+        for s in self.streams:
+            s.flush()
+
+@contextmanager
+def tee_stdout(log_path):
+    with open(log_path, "w") as logfile:
+        tee = Tee(sys.stdout, logfile)
+        old_stdout = sys.stdout
+        sys.stdout = tee
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
 
 # ============================================================
 # ARGUMENTS
@@ -265,4 +290,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    log_file = "GC_bias_QC_report.log"
+    with tee_stdout(log_file):
+        main()

@@ -31,17 +31,17 @@ def run(cmd: List[str], log_file: Path = None):
 
 def detect_fastq_pairs(fastq_dir: Path) -> List[Tuple[Path, Path]]:
     """
-    Find paired-end FASTQ files.
-    Supports patterns:
-        sample_R1.fastq.gz / sample_R2.fastq.gz
-        sample_1.fastq.gz  / sample_2.fastq.gz
-        sample.1.fq.gz     / sample.2.fq.gz
+    Return only true paired-end FASTQ pairs.
     """
-    r1_files = sorted(fastq_dir.glob("*R1*.fastq.gz")) + \
-               sorted(fastq_dir.glob("*_1*.fastq.gz")) + \
-               sorted(fastq_dir.glob("*.1.fq.gz"))
+    r1_files = sorted(fastq_dir.glob("*_R1*.fastq.gz"))
 
     pairs = []
+    for r1 in r1_files:
+        r2 = Path(str(r1).replace("_R1", "_R2"))
+        if r2.exists():
+            pairs.append((r1, r2))
+
+    return pairs
 
     for r1 in r1_files:
         r2 = None
@@ -65,16 +65,10 @@ def detect_fastq_pairs(fastq_dir: Path) -> List[Tuple[Path, Path]]:
 
 
 def detect_single_end_fastqs(fastq_dir: Path) -> List[Path]:
-    """Return FASTQs that are not part of paired-end sets."""
-    all_fastqs = set(fastq_dir.glob("*.fastq.gz"))
-    pe_fastqs = set()
-
-    # these are excluded from SE list
-    for r1, r2 in detect_fastq_pairs(fastq_dir):
-        pe_fastqs.add(r1)
-        pe_fastqs.add(r2)
-
-    return sorted(list(all_fastqs - pe_fastqs))
+    r1 = set(fastq_dir.glob("*_R1*.fastq.gz"))
+    r2 = set(fastq_dir.glob("*_R2*.fastq.gz"))
+    singles = sorted(list(r1 - {p[0] for p in detect_fastq_pairs(fastq_dir)}))
+    return singles
 
 
 # ---------------------------------------------------------
@@ -177,3 +171,22 @@ def align_fastq(
             p1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=log)
             p2 = subprocess.Popen(cmd_samtools, stdin=p1.stdout, stdout=bam, stderr=log)
             p1.stdout.close()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Align FASTQs with BWA MEM")
+
+    parser.add_argument("--fastq_dir", required=True, type=Path)
+    parser.add_argument("--genome_dir", required=True, type=Path)
+    parser.add_argument("--output_dir", required=True, type=Path)
+    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--paired", action="store_true")
+
+    args = parser.parse_args()
+
+    align_fastq(
+        fastq_dir=args.fastq_dir,
+        genome_dir=args.genome_dir,
+        output_dir=args.output_dir,
+        paired_end=args.paired,
+        threads=args.threads
+    )

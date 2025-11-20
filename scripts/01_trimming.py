@@ -13,7 +13,31 @@ Features:
 import subprocess
 from pathlib import Path
 import argparse
+import sys
+from contextlib import contextmanager
 
+class Tee(object):
+    def __init__(self, *streams):
+        self.streams = streams
+    
+    def write(self, data):
+        for s in self.streams:
+            s.write(data)
+    
+    def flush(self):
+        for s in self.streams:
+            s.flush()
+
+@contextmanager
+def tee_stdout(log_path):
+    with open(log_path, "w") as logfile:
+        tee = Tee(sys.stdout, logfile)
+        old_stdout = sys.stdout
+        sys.stdout = tee
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
 
 def detect_fastq_pairs(fastq_dir: Path):
     """
@@ -32,13 +56,13 @@ def detect_fastq_pairs(fastq_dir: Path):
     for fq in fq_files:
         name = fq.name
 
-        if "_R1" in name or "_1" in name:
-            key = name.replace("_R1", "").replace("_1", "")
+        if "_R1" in name:
+            key = name.replace("_R1", "")
             samples.setdefault(key, {"sample": key, "R1": None, "R2": None})
             samples[key]["R1"] = fq
 
-        elif "_R2" in name or "_2" in name:
-            key = name.replace("_R2", "").replace("_2", "")
+        elif "_R2" in name:
+            key = name.replace("_R2", "")
             samples.setdefault(key, {"sample": key, "R1": None, "R2": None})
             samples[key]["R2"] = fq
 
@@ -94,6 +118,9 @@ def trim_fastq(fastq_dir: Path, output_dir: Path, paired_end: bool = False, thre
             "--thread", str(threads),
             "--trim_front1", "0",
             "--trim_tail1", "0",
+            # Enable 3' end quality trimming
+            "--cut_tail",
+            # Quality-cut parameters
             "--cut_window_size", "4",
             "--cut_mean_quality", "20",
             "--length_required", "15",
@@ -140,4 +167,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    log_file = "trimming.log"
+    with tee_stdout(log_file):
+        main()
