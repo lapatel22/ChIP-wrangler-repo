@@ -3,18 +3,106 @@ import os
 import pandas as pd
 from pathlib import Path
 import numpy as np
+import argparse
 
-# ===================== CONFIG ===================== #
-species_info = {
-    "hg38": {"tagdir_root": "../hg38_data/hg38_tagdirs", "suffix_pattern": ".hg38-tagdir"},
-    "dm6":  {"tagdir_root": "../dm6_data/dm6_tagdirs", "suffix_pattern": ".dm6-tagdir"},
-    "sac3": {"tagdir_root": "../sac3_data/sac3_tagdirs", "suffix_pattern": ".sac3-tagdir"}
-}
+# ============================================================
+# ARGUMENTS
+# ============================================================
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compute GC bias, base composition, and QC report.")
+    parser.add_argument("--user_dir", required=True, help="Base directory where *_data/ directories exist.")
+    parser.add_argument("--target_species", required=True, help="Primary genome (e.g. hg38)")
+    parser.add_argument("--spike1_species", required=True, help="Spike-in species 1 (e.g. dm6)")
+    parser.add_argument("--spike2_species", required=True, help="Spike-in species 2 (e.g. sac3)")
+    return parser.parse_args()
 
-output_dir = Path("basedist_and_gc_outputs")
-output_dir.mkdir(exist_ok=True)
 
-# ===================== PART 1: BASE COMPOSITION ===================== #
+# ============================================================
+# QC REPORT FUNCTION (added)
+# ============================================================
+def generate_sample_qc_report(
+    gc_stats_path: str,
+    sample_metadata_path: str,
+    gc_hi: float = 1.2,
+    gc_lo: float = 0.8,
+    norm_hi: float = 1.1,
+    norm_lo: float = 0.9,
+    norm_diff_fraction: float = 0.20
+):
+    gc = pd.read_csv(gc_stats_path, sep="\t")
+    meta = pd.read_csv(sample_metadata_path, sep="\t")
+
+    meta_lookup = meta.set_index("library.ID")
+    sample_ids = gc["Sample"].unique()
+
+    print("\n\n==========================")
+    print(" QC REPORT")
+    print("==========================")
+
+    for sid in sample_ids:
+        print(f"\n----------------------------------")
+        print(f"Sample: {sid}")
+        print("----------------------------------")
+
+        sub = gc[gc["Sample"] == sid]
+        is_input = ("input" in sid.lower())
+
+        # ---- GC RATIOS ----
+        for _, row in sub.iterrows():
+            genome = row["Genome"]
+            ratio = row["GC_Ratio"]
+            msg = f"  GC ratio ({genome}): {ratio:.3f}"
+
+            if is_input:
+                if ratio > gc_hi:
+                    msg += "  **RED FLAG: GC high**"
+                elif ratio < gc_lo:
+                    msg += "  **RED FLAG: GC low**"
+
+            print(msg)
+
+        # ---- QC FLAG ----
+        if sid in meta_lookup.index:
+            qc = meta_lookup.loc[sid, "QC_flag"]
+            qc_display = qc if pd.notna(qc) and qc != "" else "None"
+            print(f"  QC_flag: {qc_display}")
+        else:
+            print("  QC_flag: NOT FOUND")
+
+        # ---- Normalization factors ----
+        if sid in meta_lookup.index:
+            dm6_nf = meta_lookup.loc[sid, "dm6.normfactor.ipeff.adj"]
+            sac3_nf = meta_lookup.loc[sid, "sac3.normfactor.ipeff.adj"]
+            dual_nf = meta_lookup.loc[sid, "dual.normfactor.ipeff.adj"]
+
+            print(f"  dm6 NF:  {dm6_nf:.3f}")
+            print(f"  sac3 NF: {sac3_nf:.3f}")
+            print(f"  dual NF: {dual_nf:.3f}")
+
+            # Out-of-range red flags
+            dm6_low  = dm6_nf < norm_lo
+            dm6_high = dm6_nf > norm_hi
+            sac3_low  = sac3_nf < norm_lo
+            sac3_high = sac3_nf > norm_hi
+
+            # Trigger red flag only if they disagree in opposite directions
+            if (dm6_low and sac3_high) or (dm6_high and sac3_low):
+                print("    **RED FLAG: dm6 and sac3 normalization disagree (opposite directions)**")
+
+            # Difference between dm6 and sac3
+            if dm6_nf > 0 and sac3_nf > 0:
+                diff = abs(dm6_nf - sac3_nf) / ((dm6_nf + sac3_nf) / 2)
+                if diff > norm_diff_fraction:
+                    print(f"    **WARNING: dm6 vs sac3 NF differ by >{norm_diff_fraction*100:.0f}%**")
+        else:
+            print("  Normalization factors: NOT FOUND")
+
+
+
+# ============================================================
+# BASE COMPOSITION + GC CONTENT FUNCTIONS
+# (your existing code unchanged)
+# ============================================================
 def generate_basedist(tagdir_root, suffix_pattern):
     tagdirs = [d for d in os.listdir(tagdir_root) if d.endswith("-tagdir")]
     if not tagdirs:
@@ -30,14 +118,12 @@ def generate_basedist(tagdir_root, suffix_pattern):
             print(f"Warning: Missing {freq_path}, skipping. Make sure to run makeTagDirectories with -checkGC option.")
             continue
 
-        # Read tag frequency table
         df = pd.read_csv(freq_path, sep="\t", comment="#")
         if "Offset" not in df.columns:
             df.rename(columns={df.columns[0]: "Offset"}, inplace=True)
         df_long = df.melt(id_vars=["Offset"], value_vars=["A", "C", "G", "T"],
                           var_name="Base", value_name="Frequency")
 
-        # Clean sample name
         sample = tagdir.replace(suffix_pattern, "")
         sample = sample.lstrip("0123456789_").replace("-", "")
         df_long["Sample"] = sample
@@ -51,11 +137,11 @@ def generate_basedist(tagdir_root, suffix_pattern):
     return combined
 
 
-# ===================== PART 2: GC CONTENT STATS ===================== #
 def weighted_median(gc, pdf):
     df = pd.DataFrame({"gc": gc, "pdf": pdf}).sort_values("gc")
     df["cumPDF"] = df["pdf"].cumsum() / df["pdf"].sum()
     return np.interp(0.5, df["cumPDF"], df["gc"])
+
 
 def extract_gc_stats(tagdir_root, suffix_pattern):
     tagdirs = [d for d in os.listdir(tagdir_root) if d.endswith("-tagdir")]
@@ -77,7 +163,6 @@ def extract_gc_stats(tagdir_root, suffix_pattern):
             sample_gc = pd.read_csv(sample_gc_path, sep="\t")
             genome_gc = pd.read_csv(genome_gc_path, sep="\t")
 
-            # Convert to numeric and clean
             for df in [sample_gc, genome_gc]:
                 df["GC%"] = pd.to_numeric(df["GC%"], errors="coerce")
                 df["Normalized Fraction(PDF)"] = pd.to_numeric(df["Normalized Fraction(PDF)"], errors="coerce")
@@ -100,7 +185,7 @@ def extract_gc_stats(tagdir_root, suffix_pattern):
                 "Genome_MedianGC": median_genome
             })
         except Exception as e:
-            print(f"Error reading GC data for {tagdir}: {e} ")
+            print(f"Error reading GC data for {tagdir}: {e}")
 
     if not rows:
         print(f"No valid GC files found in {tagdir_root}. Make sure to run makeTagDirectories with -checkGC option.")
@@ -109,37 +194,67 @@ def extract_gc_stats(tagdir_root, suffix_pattern):
     return pd.DataFrame(rows)
 
 
-# ===================== MAIN LOOP ===================== #
-basedist_results = {}
-gc_stats_results = {}
 
-for sp, info in species_info.items():
-    root = info["tagdir_root"]
-    suffix = info["suffix_pattern"]
+# ============================================================
+# MAIN
+# ============================================================
+def main():
+    args = parse_args()
+    user_dir = Path(args.user_dir)
 
-    # --- Base composition ---
-    bd = generate_basedist(root, suffix)
-    if bd is not None:
-        out_path = output_dir / f"{sp}_basedist.tsv"
-        bd.to_csv(out_path, sep="\t", index=False)
-        basedist_results[sp] = out_path
-        print(f"Success: Saved {sp} base distribution → {out_path}")
+    # species_info now dynamically constructed
+    species_info = {
+        args.target_species: {
+            "tagdir_root": user_dir / f"{args.target_species}_data" / f"{args.target_species}_tagdirs",
+            "suffix_pattern": f".{args.target_species}-tagdir"
+        },
+        args.spike1_species: {
+            "tagdir_root": user_dir / f"{args.spike1_species}_data" / f"{args.spike1_species}_tagdirs",
+            "suffix_pattern": f".{args.spike1_species}-tagdir"
+        },
+        args.spike2_species: {
+            "tagdir_root": user_dir / f"{args.spike2_species}_data" / f"{args.spike2_species}_tagdirs",
+            "suffix_pattern": f".{args.spike2_species}-tagdir"
+        }
+    }
 
-    # --- GC stats ---
-    gc_df = extract_gc_stats(root, suffix)
-    if gc_df is not None:
-        gc_df["Genome"] = sp
-        out_path = output_dir / f"{sp}_gc_stats.tsv"
-        gc_df.to_csv(out_path, sep="\t", index=False)
-        gc_stats_results[sp] = out_path
-        print(f"Success: Saved {sp} GC stats → {out_path}")
+    output_dir = Path("basedist_and_gc_outputs")
+    output_dir.mkdir(exist_ok=True)
 
-# Combine GC stats for all species into one file
-if gc_stats_results:
-    all_gc = pd.concat([pd.read_csv(p, sep="\t") for p in gc_stats_results.values()], ignore_index=True)
-    all_gc["GC_Ratio"] = all_gc["Sample_MeanGC"] / all_gc["Genome_MeanGC"]
-    combined_path = output_dir / "all_gc_stats_combined.tsv"
-    all_gc.to_csv(combined_path, sep="\t", index=False)
-    print(f"Success: Combined GC stats → {combined_path}")
+    gc_stats_results = {}
 
-print("Success: Completed all species base composition and GC bias extraction.")
+    # ---- MAIN LOOP ----
+    for sp, info in species_info.items():
+        root = info["tagdir_root"]
+        suffix = info["suffix_pattern"]
+
+        # GC stats
+        gc_df = extract_gc_stats(root, suffix)
+        if gc_df is not None:
+            gc_df["Genome"] = sp
+            out_path = output_dir / f"{sp}_gc_stats.tsv"
+            gc_df.to_csv(out_path, sep="\t", index=False)
+            gc_stats_results[sp] = out_path
+            print(f"Success: Saved {sp} GC stats → {out_path}")
+
+    # ---- COMBINE ----
+    if gc_stats_results:
+        all_gc = pd.concat([pd.read_csv(p, sep="\t") for p in gc_stats_results.values()], ignore_index=True)
+        all_gc["GC_Ratio"] = all_gc["Sample_MeanGC"] / all_gc["Genome_MeanGC"]
+        combined_path = output_dir / "all_gc_stats_combined.tsv"
+        all_gc.to_csv(combined_path, sep="\t", index=False)
+        print(f"Success: Combined GC stats → {combined_path}")
+
+        # ---- NEW QC REPORT SECTION ----
+        metadata_norm_path = user_dir / "sample_metadata.norm.tsv"
+        if metadata_norm_path.exists():
+            generate_sample_qc_report(
+                gc_stats_path=combined_path,
+                sample_metadata_path=metadata_norm_path
+            )
+        else:
+            print("WARNING: sample_metadata.norm.tsv not found → QC report skipped.")
+
+
+if __name__ == "__main__":
+    main()

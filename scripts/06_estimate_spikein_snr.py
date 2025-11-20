@@ -55,7 +55,7 @@ def make_tagdirs(
                 make_tag_dir_bin,
                 str(tagdir),
                 str(sam),
-                "-genome", dictionary[spike_names],
+                "-genome", dictionary[spike_name],
                 "-fragLength", str(frag_length),
                 "-checkGC"
             ]
