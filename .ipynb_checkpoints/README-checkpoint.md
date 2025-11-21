@@ -89,13 +89,31 @@ There are a few requirements before running ChIP-wrangler:
 
 ![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
 
-2. Pre-loaded genome fasta files in a folder called `genomes` in the working directory. For all species (target and spike-in species), the genome fasta files from each must be placed in this folder:
+2. Pre-loaded genome fasta files in a folder called `genomes` in the working directory. For all species (target and spike-in species), the genome fasta files from each must be placed in this folder. In the example tutorial below, this genome folder contains:
 
-In the example tutorial below, this genome folder contains:
+    dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
 
-dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
+3. Fastq files in a folder inside the working directory
 
-3. 
+4. A metadata file, listing the samples in the fastq file directory (without added R1/R2, file suffixes, etc).
+
+        head sample_names.tsv 
+        library.ID
+        HelaS3_0sync_100inter_1_H3K9ac_1
+        HelaS3_0sync_100inter_1_H3K9ac_2
+        HelaS3_0sync_100inter_1_H3K9ac_3
+        HelaS3_0sync_100inter_1_input_1
+        HelaS3_100sync_0inter_1_H3K9ac_1
+        HelaS3_100sync_0inter_1_H3K9ac_2
+        HelaS3_100sync_0inter_1_H3K9ac_3
+        HelaS3_100sync_0inter_1_input_1
+
+This can be easily created by running: `(echo -e "library.ID"; for i in *.fastq.gz; do echo "${i%.fastq.gz}"; done) > sample_names.tsv` inside the folder containing fastq files, or simply pasting your sample names into an excel sheet/notepad, naming the column "library.ID", and saving as a tsv.
+
+When you begin, your working directory should look like: 
+
+    $ ls user_dir
+    fastqfiles/  sample_names.tsv  scripts/ genomes/
 
 ### Wrangle_all
 
@@ -336,8 +354,7 @@ Other naming convention rules:
 
 The metadata file is simply a tab-separated text file with one column named "library.ID", and filled with sample names. You can make this in excel/notepad, or, if you are in the directory containing fastq files you can generate it programatically: 
 
-`(echo -e "library.ID"; for i in *.fastq.gz; do echo "${i%.fastq.gz}"; done) > sample_metadata.tsv`
-
+`(echo -e "library.ID"; for i in *.fastq.gz; do echo "${i%.fastq.gz}"; done) > sample_names.tsv`
 
 Be mindful if you have paired end reads, etc. as there should be only one row/entry for each library.
 
