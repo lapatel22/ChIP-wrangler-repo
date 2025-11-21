@@ -24,11 +24,13 @@ ChIP-wrangler is suited for the normalization of ChIP-seq data when global chang
 
 However, the addition of any step to a protocol, including the addition of exogenous chromatin can be a possible source of error. Most spike-in normalization methods are done by applying the normalization factor as a single scalar to transform the signal genome-wide. Therefore, variability in this normalization factor can have a significant impact on the downstream data, potentially skewing results/conclusions. The figure below summarizes the main problems that arise when spike-ins are not used carefully:
 
-![image.png](attachment:011729e9-aadd-4ee9-b35d-d4346006e359.png)
+![image.png](readme_assets/011729e9-aadd-4ee9-b35d-d4346006e359.png)
 
-The good news is 
+Spike-in normalization using two species with ChIP-wrangler is designed to prevent these unwanted outcomes. 
 
-ChIP-wrangler provides an all-in-one wrapper function called `wrangle_all`. This function takes in fastq files and genomes used (target and spike-in) provided by the user, and provides ChIP-wrangler normalized target data, as well as a QC report. 
+## The full pipeline
+
+ChIP-wrangler provides wrapper functions called `wrangle_all` . takes in fastq files and genomes used (target and spike-in) provided by the user, and provides ChIP-wrangler normalized target data, as well as a QC report. 
 
 The general steps are as follows: 
 
@@ -41,11 +43,21 @@ The general steps are as follows:
  - **Normalizing Target data**
  - **QC Report**: a report .html is generated visualizing nucleotide frequencies, spike-in target ratios, and other important quality checks
  - Downstream analysis, which can include:
-   - **DESeq2 with ChIP-wrangler**: enabling isolation of differential peaks
+   - **DESeq2 with ChIP-wrangler**: enabling identification of differential peaks
    - Generating BigWigs
    - Plotting of spike-in normalized data
 
 An in-depth explanation of each function is available in the [detailed workflow page](#Detailed-workflow).
+
+## Schematic of Workflow
+
+`wrangle_all` automates the process of ChIP-seq analysis and normalization files, from fastqfiles all the way to normalized data ready for analysis, as well as providing a QC report. 
+
+![image.png](readme_assets/4c8e7e2e-4e94-4c4c-8c3f-5c7da332899e.png)
+
+`wrangle_analysis` performs downstream analysis, including peak finding with HOMER, and differential peak analysis with DESeq2, which incorporates ChIP-wrangler's spike-in normalization.
+
+![image.png](readme_assets/f38669a3-4ffa-4f14-b029-01a637aa1d35.png)
 
 ## Installation
 
@@ -57,7 +69,6 @@ An in-depth explanation of each function is available in the [detailed workflow 
  - python
  - R
 
-
 The following packages are not required, but used in the tutorial and example workflow
 
  - fastp (or similar method of removing library adapters)
@@ -67,16 +78,6 @@ The following packages are not required, but used in the tutorial and example wo
  - DESeq2
  - apeglm
  - ggplot
-
-## Schematic of Workflow
-
-`wrangle_all` automates the process of ChIP-seq analysis and normalization files, from fastqfiles all the way to normalized data ready for analysis, as well as providing a QC report. 
-
-![image.png](attachment:4c8e7e2e-4e94-4c4c-8c3f-5c7da332899e.png)
-
-`wrangle_analysis` performs downstream analysis, including peak finding with HOMER, and differential peak analysis with DESeq2, which incorporates ChIP-wrangler's spike-in normalization.
-
-![image.png](attachment:f38669a3-4ffa-4f14-b029-01a637aa1d35.png)
 
 ## Running `wrangle_all`
 
@@ -133,13 +134,13 @@ We are using a dataset of H3K9ac ChIP-seq from mitotic or interphase HeLaS3 cell
 
 The raw data files are named as follows: 
 
-![image.png](attachment:2a5628b7-5ed9-4f6f-a6c1-edc06bc18ebf.png)
+![image.png](readme_assets/2a5628b7-5ed9-4f6f-a6c1-edc06bc18ebf.png)
 
 So why do we need spike-in normalization?
 
 Below is a metagene plot of read-normalized H3K9ac data at *H. sapiens* RefSeq TSSs: 
 
-![image.png](attachment:4fd4fe2f-f9e2-43c6-9b4a-8794de0163eb.png)
+![image.png](readme_assets/4fd4fe2f-f9e2-43c6-9b4a-8794de0163eb.png)
 
 It appears that:
 
@@ -148,11 +149,11 @@ It appears that:
 
 After ChIP-wrangler normalization, we see the expected difference between mitotic and interphase H3K9ac levels: 
 
-![image.png](attachment:92045e08-2cae-4692-a604-f366649e84bb.png)
+![image.png](readme_assets/92045e08-2cae-4692-a604-f366649e84bb.png)
 
 As ChIP-wrangler makes use of two spike-in species, we can plot the result after noramlizing to each species (fly and yeast) separately, and visualize the difference between the results:
 
-![image.png](attachment:c1215228-c488-4e89-8c25-3e1293986d43.png)
+![image.png](readme_assets/c1215228-c488-4e89-8c25-3e1293986d43.png)
 
 To save computational time and allow for flexibility, there are two initial processing steps that can be skipped if the user specifies. These are the fastq trimming step and the genome-alignment step. The fastq trimming step is optional (though highly recommended as it improves alignment rates) and can be done entirely outside of ChIP-wrangler if the user desires, just place the trimmed files in a folder called `fastq_trimmed`.
 
@@ -204,14 +205,10 @@ Additionally, there is the option of running `wrangle_all_analysis`, which perfo
 
 After running ChIP-wrangler's `wrangle_all`, the following folders will be created:
 
-![image.png](attachment:eae5f733-706f-421b-9505-0ed76dcb4658.png)
+![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
 
 In this example, the target normalized tag directories are in `hg38_normalized_tagdirs`
 
-
-```R
-
-```
 
 # Detailed workflow
 
@@ -287,7 +284,7 @@ In this particular example I wanted to add a suffix “_dm6” to all chromosome
 We can double check by printing fastq headers
 `perl -ne 'if(/^>(\S+)/){print "$1\n"}' genome_dm6.fa`
 
-![image.png](attachment:063924b6-b90c-4bb0-b93d-c04d838d8e48.png)
+![image.png](readme_assets/063924b6-b90c-4bb0-b93d-c04d838d8e48.png)
 
 **Step 2. Create and index concatenated genome**
 
@@ -301,7 +298,7 @@ Now we can index the genome fasta file, using the preferred aligner. For example
 
 The first argument “genome_prefix” will the prefix of the indexed genome files created:
 
-![image.png](attachment:cc43b284-85a5-4306-adcc-4c997823a456.png)
+![image.png](readme_assets/cc43b284-85a5-4306-adcc-4c997823a456.png)
 
 
 ```R
@@ -414,7 +411,7 @@ ChIP-wrangler contains functions for removing duplicates from single-end and pai
 
 Below is an example of Read 1 of a fastq file, with UMIs in the read header:
 
-![image.png](attachment:e6b61fe5-b478-4de7-bbb5-f84479444b71.png)
+![image.png](readme_assets/e6b61fe5-b478-4de7-bbb5-f84479444b71.png)
 
 CCGTATATC (at the end of the header line) is the UMI sequence, and AACTCTCTAC+ACGGCTTC are the dual-barcoded indices which identify all reads in this library.
 
@@ -424,16 +421,16 @@ With UMIs in the read header:
 
 #### Without UMIs
 
-        run(["samtools", "view", "-bS", str(bam), "-o", str(bam_file)], log_file)
-        run(["samtools", "collate", "-o", str(collated_bam), str(bam_file)], log_file)
-        run(["samtools", "fixmate", "-m", str(collated_bam), str(fixmate_bam)], log_file)
-        run(["samtools", "sort", str(fixmate_bam), "-o", str(sorted_bam)], log_file)
-        run(["samtools", "markdup", "-r", "-s", str(sorted_bam), str(nodup_bam)], log_file)
+        samtools view -bS bam -o bam_file 
+        samtools collate -o str(collated_bam) str(bam_file)
+        samtools fixmate -m str(collated_bam) str(fixmate_bam)
+        samtools sort str(fixmate_bam) -o str(sorted_bam)
+        samtools markdup -r -s str(sorted_bam) str(nodup_bam)
 
 
 ### Expected Outputs
 
-Inside `concat_align/dedup_out` are the bam files, either deduplicated to only keep unique UMIs, or with PCR duplicates removed. 
+Inside `concat_align/dedup_out` are the bam files, either deduplicated to only keep unique UMIs, or with PCR duplicates removed. There are also log files storing the output of either samtools mark duplicates or umi_tools deduplicate. 
 
 ## 04_generate_species_bams
 
@@ -498,7 +495,7 @@ Bam files containing the appropriate chromosome for each species (in this exampl
 
 When we first created our concatenated genome, we gave the chromosomes from the spike-in genome suffixes to distinguish them from target chromosomes. Therefore, our resulting alignment files contain chromosome names with the same suffixes in column 3 of the bam file (see below for an example). We need to remove these before we try to make HOMER Tag Directories, BigWigs, or any other filetype that depends on genomic position information.
 
-![image.png](attachment:cfc24934-fe34-4110-b422-f6c91467dd53.png)
+![image.png](readme_assets/cfc24934-fe34-4110-b422-f6c91467dd53.png)
 
 We remove the suffixes from the chromosome names of both spike-in speices, and output .sam files, labeled ".nosuffx2.sam" in the following directories: 
 
@@ -569,7 +566,7 @@ If the spike-in/target ratio is too low in the input samples, it could be a sign
 
 Below shows the impact of varying the amount of spike-in species' chromatin on normalization of target data. HeLa-S3 cells were treated with TSA, a pan-HDAC inhibitor expected to globally increase histone acetylation levels, including H3K9ac. As the spike-in/target ratio becomes too high, there is no observable difference in treatment compared to control:
 
-![image.png](attachment:8b52aa0b-b3d2-4848-9575-d6ec3fe6cb8a.png)
+![image.png](readme_assets/8b52aa0b-b3d2-4848-9575-d6ec3fe6cb8a.png)
 
 Sufficient spike-in/target ratios depend on multiple factors: 
 
@@ -590,29 +587,29 @@ The intuition behind this normalization: the spike-in IP/input gives an idea of 
 
 From our mitotic and interphase titration example we can see this visually when plotting the relative amounts of reads per species in each condition. 
 
-![image.png](attachment:51e388e5-0d7f-43c8-ad4c-6cb0212d240f.png)
+![image.png](readme_assets/51e388e5-0d7f-43c8-ad4c-6cb0212d240f.png)
 
 Factors such as genome size, relative abundance of epitope, and differential antibody affinity between species can significantly alter the yielded reads in the IP from a given amount of input chromatin. 
 
 For example, take the condition from the plot above with all unsychonized, interphase HeLaS3 cells. Below we plot the relative reads per species in three technical replicates of H3K9ac ChIP-seq and their corresponding input library.
 
-![image.png](attachment:18fec40f-bb3b-48ea-bccb-9b173526145e.png)
+![image.png](readme_assets/18fec40f-bb3b-48ea-bccb-9b173526145e.png)
 
 In the input library, *H. sapiens* takes up the vast majority of reads (~98%). However, in the IP libraries, only ~67% of reads align to *H. sapiens*. Here, the ratio of *D. melanogaster*/*H.sapiens* reads in a H3K9ac IP library are roughly 2.5-fold the ratio of *D. melanogaster*/*H.sapiens* in their corresponding input library, meaning the value of dm6 IP/input for this sample is 2.5. Meanwhile, the ratio of *S. cerevisiae*/*H. sapiens* in the same H3K9ac IP sample is around 15-fold that of the input ratio.
 
 Below, we plot the IP/input-derived normalization factors from each spike-in species:
 
-![image.png](attachment:27f5868a-d39f-4557-876b-0a38001d462d.png)
+![image.png](readme_assets/27f5868a-d39f-4557-876b-0a38001d462d.png)
 
 These normalization factors must be adjusted to be in the same range before they can be averaged to create the dual spike-in normalization factor.
 
 We do this by "average-control normalization": for each spike-in species, we divide each normalization factor by the average normalization factor in the control conditions. Here we set the mitotic HeLaS3 cells (with minimum H3K9ac) as the control condition.
 
-![image.png](attachment:0bcba4c5-931d-4b62-9128-a83d1f7a171c.png)
+![image.png](readme_assets/0bcba4c5-931d-4b62-9128-a83d1f7a171c.png)
 
 One QC for healthy spike-in normalization is that the results should be "species-agnostic"- that is, the normalization factors generated for each spike-in species should be similar. Below shows an example of well-correlated spike-in normalization factors for the mitotic H3K9ac titration dataset:
 
-![image.png](attachment:d1e2449e-3973-47b4-b3f3-97a3e81c9691.png)
+![image.png](readme_assets/d1e2449e-3973-47b4-b3f3-97a3e81c9691.png)
 
 Spike-in normalization *can* be performed with these normalization factors, however it is highly recommended to adjust for ChIP-seq IP efficiency, using the spike-in samples to estimate the signal-to-noise ratio in each library. In the next section is an example where IP efficiency varies greatly between sample conditions, and must be accounted for to have proper normalization.
 
@@ -647,44 +644,33 @@ usage:
 In some experiments, the IP efficiency is mostly consistent between samples. 
 In our example dataset measuring mitotic and interphase H3K9ac, below are the *D. melanogaster* and *S. cerevisiae* metagene plots at TSSs:
 
-![image.png](attachment:7b836d4f-f32d-4783-ba00-c331ad897931.png)
-![image.png](attachment:de54db32-b97e-4dfc-b26c-0dd55a7a785b.png)
+![image.png](readme_assets/7b836d4f-f32d-4783-ba00-c331ad897931.png)
+![image.png](readme_assets/de54db32-b97e-4dfc-b26c-0dd55a7a785b.png)
 
 In some cases (where target epitope changes less), there is less of an impact on spike-in IP efficiency. Therefore, the adjustment has less of an effect on the normalization factors. 
 
 As expected, the resulting normalization factors are similar before and after adjusting for IP efficiency: 
 
-![image.png](attachment:ac4df234-2228-4ba3-93dc-c7a61d1a81ff.png)
-![image.png](attachment:405127e4-2bb6-4a78-b6c9-b049e9a22cc7.png)
-
-
-
-```R
-
-```
-
-
-```R
-
-```
+![image.png](readme_assets/ac4df234-2228-4ba3-93dc-c7a61d1a81ff.png)
+![image.png](readme_assets/405127e4-2bb6-4a78-b6c9-b049e9a22cc7.png)
 
 Below is an example of the impact on spike-in normalization, when target epitope levels change dramatically. Here, HeLaS3 cells were treated with 1uM TSA for 18 hours, after which levels of H3K27ac significantly increased:
 
-![image.png](attachment:a4d0c03a-f130-4e7f-8a59-612b529d5c98.png)
+![image.png](readme_assets/a4d0c03a-f130-4e7f-8a59-612b529d5c98.png)
 
 Cells with TSA were mixed with untreated cells to create a titration of H3K27ac levels from low to high: 
 
-![image.png](attachment:2d110251-3432-4b91-810d-98767ec282f7.png)
+![image.png](readme_assets/2d110251-3432-4b91-810d-98767ec282f7.png)
 
 Across conditions, as each sample contained a larger proportion of TSA-treated cells, the amount of H3K27ac recovered for spike-ins *D. melanogaster* and *S. cerevisiae* was decreased:
 
-![image.png](attachment:ce087eb5-314f-4b00-9087-02f85c15a71d.png)
-![image.png](attachment:bfa03866-962f-4426-a9fe-000260bab585.png)
+![image.png](readme_assets/ce087eb5-314f-4b00-9087-02f85c15a71d.png)
+![image.png](readme_assets/bfa03866-962f-4426-a9fe-000260bab585.png)
 
 We quantify signal at the TSS by calculating the area under the curve of the coverage histogram:
 
-![image.png](attachment:b14c218c-cec8-4392-9e19-60c3536360e3.png)
-![image.png](attachment:9f248893-169d-45e0-ad5e-bfb0dbedb20b.png)
+![image.png](readme_assets/b14c218c-cec8-4392-9e19-60c3536360e3.png)
+![image.png](readme_assets/9f248893-169d-45e0-ad5e-bfb0dbedb20b.png)
 
 
 We use the TSS Coverage in the input sample to estimate background signal, subtracting from the H3K27ac coverage, to estimate the IP efficiency in each spike-in sample. 
@@ -693,27 +679,27 @@ We use the TSS Coverage in the input sample to estimate background signal, subtr
 
 Below is a comparison of H3K27ac signal quantified at TSSs or Peak Regions in *D. melanogaster*
 
-![image.png](attachment:ee2be96d-034c-4460-a9d9-cb4fd8c0b471.png)
-![image.png](attachment:259a57cf-3a4f-4d92-889b-6e9a08f58e76.png)
+![image.png](readme_assets/ee2be96d-034c-4460-a9d9-cb4fd8c0b471.png)
+![image.png](readme_assets/259a57cf-3a4f-4d92-889b-6e9a08f58e76.png)
 
 After subtracking out the background signal, we are left with IP signal for each spike-in
 
-![image.png](attachment:0bdcbe85-13f7-4895-b4ab-aeb664ca41a4.png)
-![image.png](attachment:bbcc9a8c-af2d-46a5-87d3-29d88aef22f9.png)
+![image.png](readme_assets/0bdcbe85-13f7-4895-b4ab-aeb664ca41a4.png)
+![image.png](readme_assets/bbcc9a8c-af2d-46a5-87d3-29d88aef22f9.png)
 
 Note the difference in range of the y axes between *D. melanogaster* and *S. cerevisiae*: as can also be seen from the TSS plots, *S. cerevisiae* H3K27ac signal is relatively constant across increasing levels of *H. sapiens* H3K27ac signal.
 
 We can then combine the SNR signal with the IP/input-derived normalization factor, to arrive at IP-efficiency-adjusted Spike-in Normalization Factors:
 
-![image.png](attachment:c58d699a-5381-4256-835b-dd49b2e59cca.png)
-![image.png](attachment:f6f72715-0b1f-4ae2-82f6-84217373297d.png)
+![image.png](readme_assets/c58d699a-5381-4256-835b-dd49b2e59cca.png)
+![image.png](readme_assets/f6f72715-0b1f-4ae2-82f6-84217373297d.png)
 
 Below are plots comparing the fly- and yeast-derived normalization factors, before and after the adjustment for IP efficiency. You will notice the in the plot on the left the normalization factors do not agree as well. Here, the normalization factor has not taken into account the varying IP efficiencies between samples. 
 
 The resulting spike-in normalization factors, after accounting for IP efficiency, correlate between species: 
 
-![image.png](attachment:655c6bcc-ef3f-471f-8d28-b4c7c7301be7.png)
-![image.png](attachment:3af97015-4c7a-41a2-8c17-f33eea0af995.png)
+![image.png](readme_assets/655c6bcc-ef3f-471f-8d28-b4c7c7301be7.png)
+![image.png](readme_assets/3af97015-4c7a-41a2-8c17-f33eea0af995.png)
 
 
 ## 07_normalize
@@ -887,7 +873,7 @@ Solution: we make a new group variable combining treatments and timepoints
 
 You will see the following output: 
 
-![image.png](attachment:5494360d-8bc9-4ac3-bd3c-a84a98c6d023.png)
+![image.png](readme_assets/5494360d-8bc9-4ac3-bd3c-a84a98c6d023.png)
 
 **Step 5. Initial QC checks**
 
@@ -907,7 +893,7 @@ We import our metadata, multiply the DESeq size factors with our custom size fac
 
 Now when you run DESeq2, you will see the custom size factors being used: 
 
-![image.png](attachment:13132c7c-5c8d-4f82-be55-2d83b1be2d62.png)
+![image.png](readme_assets/13132c7c-5c8d-4f82-be55-2d83b1be2d62.png)
 
 
 ### Plot PCA without batch effects
@@ -963,18 +949,18 @@ abline(a=0,b=1,col="red") `
 
 `DESeq2::plotMA(res_mle, ylim=c(-3,3), main="MA (MLE)")`
 
-![image.png](attachment:f6de5657-2dc4-46de-b33a-c1c5a482db87.png)
+![image.png](readme_assets/f6de5657-2dc4-46de-b33a-c1c5a482db87.png)
 
 `DESeq2::plotMA(res_shr, ylim=c(-3,3), main="MA (apeglm shrunken)")`
 
-![image.png](attachment:8e644a29-deb1-4613-801a-5dba4ed56065.png)
+![image.png](readme_assets/8e644a29-deb1-4613-801a-5dba4ed56065.png)
 
 
 #### Rlog counts: 
 
 rlog_counts_HCT_K27ac <- assay(vsd)
 
-![image.png](attachment:8dcacd3b-a3fd-49cf-a817-71ddabe7f4b6.png)
+![image.png](readme_assets/8dcacd3b-a3fd-49cf-a817-71ddabe7f4b6.png)
 
 
 #### Volcano plot
@@ -985,13 +971,3 @@ Because we moved the peak positions to the row names before creating the DESeq o
 
 `top_peak_id <- rownames(res)[which.min(res$padj)]`
 
-
-
-
-
-
-
-
-```R
-
-```

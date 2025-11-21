@@ -30,7 +30,7 @@ Spike-in normalization using two species with ChIP-wrangler is designed to preve
 
 ## The full pipeline
 
-ChIP-wrangler provides an all-in-one wrapper function called `wrangle_all`. This function takes in fastq files and genomes used (target and spike-in) provided by the user, and provides ChIP-wrangler normalized target data, as well as a QC report. 
+ChIP-wrangler provides wrapper functions called `wrangle_all` . takes in fastq files and genomes used (target and spike-in) provided by the user, and provides ChIP-wrangler normalized target data, as well as a QC report. 
 
 The general steps are as follows: 
 
@@ -43,7 +43,7 @@ The general steps are as follows:
  - **Normalizing Target data**
  - **QC Report**: a report .html is generated visualizing nucleotide frequencies, spike-in target ratios, and other important quality checks
  - Downstream analysis, which can include:
-   - **DESeq2 with ChIP-wrangler**: enabling isolation of differential peaks
+   - **DESeq2 with ChIP-wrangler**: enabling identification of differential peaks
    - Generating BigWigs
    - Plotting of spike-in normalized data
 
@@ -68,7 +68,6 @@ An in-depth explanation of each function is available in the [detailed workflow 
  - bamUtil
  - python
  - R
-
 
 The following packages are not required, but used in the tutorial and example workflow
 
@@ -422,16 +421,16 @@ With UMIs in the read header:
 
 #### Without UMIs
 
-        run(["samtools", "view", "-bS", str(bam), "-o", str(bam_file)], log_file)
-        run(["samtools", "collate", "-o", str(collated_bam), str(bam_file)], log_file)
-        run(["samtools", "fixmate", "-m", str(collated_bam), str(fixmate_bam)], log_file)
-        run(["samtools", "sort", str(fixmate_bam), "-o", str(sorted_bam)], log_file)
-        run(["samtools", "markdup", "-r", "-s", str(sorted_bam), str(nodup_bam)], log_file)
+        samtools view -bS bam -o bam_file 
+        samtools collate -o str(collated_bam) str(bam_file)
+        samtools fixmate -m str(collated_bam) str(fixmate_bam)
+        samtools sort str(fixmate_bam) -o str(sorted_bam)
+        samtools markdup -r -s str(sorted_bam) str(nodup_bam)
 
 
 ### Expected Outputs
 
-Inside `concat_align/dedup_out` are the bam files, either deduplicated to only keep unique UMIs, or with PCR duplicates removed. 
+Inside `concat_align/dedup_out` are the bam files, either deduplicated to only keep unique UMIs, or with PCR duplicates removed. There are also log files storing the output of either samtools mark duplicates or umi_tools deduplicate. 
 
 ## 04_generate_species_bams
 
