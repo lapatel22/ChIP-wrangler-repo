@@ -81,6 +81,24 @@ The following packages are not required, but used in the tutorial and example wo
 
 ## Running `wrangle_all`
 
+### Before you begin: 
+
+There are a few requirements before running ChIP-wrangler:
+
+1. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is a required argument: "user_dir". The user can place this directory wherever they chose. ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
+
+![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
+
+2. Pre-loaded genome fasta files in a folder called `genomes` in the working directory. For all species (target and spike-in species), the genome fasta files from each must be placed in this folder:
+
+In the example tutorial below, this genome folder contains:
+
+dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
+
+3. 
+
+### Wrangle_all
+
 For the tutorial, we run `wrangle_all` with the following parameters: 
 
 - target_genome = hg38
