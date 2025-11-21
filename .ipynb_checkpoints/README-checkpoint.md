@@ -124,7 +124,7 @@ The ChIP-wrangler workflow, if running each function separately is:
 `07_normalize_tagdirs.py  --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
 `
 
-`08`
+`08_QC_data.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
 # An example ChIP-wrangler workflow start to finish
 
@@ -244,12 +244,11 @@ Additionally, if the custom genome name is very long it creates long header name
 
 The `00_preprocessing` step will automatically strip special characters from the genome names specified, and truncate at 20 characters, which will prevent most issues. However, the user can also add their own desired genome labels in the script directly. The below example is used for the *S. cerevisiae* genome sacCer3, where we label chromosomes with "sac3" instead of "sacCer3".
 
+Inside 00_preprocessing: 
 
-map special genome names to shorter suffix labels
- if you desire custom genome labels, change here!
-suffix_name_map = {
+    suffix_name_map = {
     "sacCer3": "sac3"
-}
+    }
 
 
 ## 00_preprocessing
@@ -300,10 +299,6 @@ The first argument “genome_prefix” will the prefix of the indexed genome fil
 
 ![image.png](readme_assets/cc43b284-85a5-4306-adcc-4c997823a456.png)
 
-
-```R
-
-```
 
 #### Sample metadata file
 
@@ -506,7 +501,6 @@ We remove the suffixes from the chromosome names of both spike-in speices, and o
 `../hg38_data/hg38_aligned/`
 
 
-
 ## 05_get_sequencing_stats
 
 ### Inputs
@@ -539,7 +533,7 @@ Usage:
 
 Usage: 
 
-python 05_get_sequencing_stats.py \
+    python 05_get_sequencing_stats.py \
     --user_dir /proj/experiment1 \
     --target_species hg38 \
     --spike1_species dm6 \
@@ -632,7 +626,14 @@ Spike-in normalization *can* be performed with these normalization factors, howe
 
 usage: 
 
-    06_estimate_spikein_snr.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --SNR_region REGION --homer_path HOMER --frag_length INT --hist_size INT --hist_bin INT --experiment_id ID
+    06_estimate_spikein_snr.py 
+    --user_dir USER_DIR 
+    --target_species TARGET_SPECIES 
+    --spike1_species SPIKE1_SPECIES 
+    --spike2_species SPIKE2_SPECIES 
+    --SNR_region REGION --homer_path HOMER 
+    --frag_length INT --hist_size INT 
+    --hist_bin INT --experiment_id ID
 
 ### inputs
 
@@ -717,7 +718,12 @@ The resulting spike-in normalization factors, after accounting for IP efficiency
 
 Usage: 
 
-    07_normalize_tagdirs.py  --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
+    07_normalize_tagdirs.py  
+    --user_dir USER_DIR 
+    --target_species TARGET_SPECIES 
+    --spike1_species SPIKE1_SPECIES 
+    --spike2_species SPIKE2_SPECIES 
+    --frag_length INT
 
 
 
@@ -808,7 +814,6 @@ The final QC report includes:
 - Correlation of spike-in normalization factors
 
 ## 10_DESeq2_with_ChIP-wrangler
-
 
 
 ### Configurable variables 
