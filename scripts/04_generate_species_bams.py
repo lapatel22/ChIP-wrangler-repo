@@ -23,7 +23,7 @@ def generate_species_bams(
     output_dir = user_dir / "bams_chr_sep"
     filtered_dir = user_dir / "filtered_bams"
 
-    bamutil_path = "/home/lahodge/miniconda3/bin/bam"       # bamUtil binary
+    bamutil_path = "/home/lahodge/miniconda3/envs/chip_wrangler_env/bin/bam"       # bamUtil binary
     samtools_path = "samtools" # samtools binary
     suffix_to_remove = ".concat.nodup.bam"
 
