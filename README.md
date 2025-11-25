@@ -68,6 +68,7 @@ An in-depth explanation of each function is available in the [detailed workflow 
  - bamUtil
  - python
  - R
+ - pandas
 
 The following packages are not required, but used in the tutorial and example workflow
 
@@ -89,7 +90,7 @@ There are a few requirements before running ChIP-wrangler:
 
 ![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
 
-2. Pre-loaded genome fasta files in a folder called `genomes` in the working directory. For all species (target and spike-in species), the genome fasta files from each must be placed in this folder. In the example tutorial below, this genome folder contains:
+2. Pre-loaded genome fasta files. In the example tutorial below, the genomes are:
 
     dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
 
@@ -143,7 +144,7 @@ Example:
 
 The ChIP-wrangler workflow, if running each function separately is: 
 
-`00_preprocessing.py --user_dir USER_DIR --target_genome TARGET_GENOME --spikein_genomes SPIKEIN_GENOMES`
+`00_preprocessing.py --user_dir USER_DIR --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa`
 
 `01_trimming.py --fastq_dir FASTQ_DIR --output_dir OUTPUT_DIR --paired_end --threads THREADS`
 
@@ -161,6 +162,23 @@ The ChIP-wrangler workflow, if running each function separately is:
 `
 
 `08_QC_data.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
+
+## Choice of controls and sample naming
+
+Samples should be named according to the following convention:
+
+CellType_Treatment_Timepoint_BiologicalReplicate_Antibody_TechnicalReplicate
+
+The Treatment/Timepoint columns can be used as needed, but they each are a place to put sample conditions, or categorical variables explaining the experiment. 
+
+In the given example experiment, where mitotic and interphase HeLaS3 cells are combined in different ratios to create a titration of H3K9ac levels, the samples containing 100% mitotic cells are named `HelaS3_100sync_0inter_1_H3K9ac_1` while the samples containing 50% mitotic and 50% interphase cells are named `HelaS3_50sync_50inter_1_H3K9ac_1`
+
+- Antibody (usually I have multiple IP samples from each biological sample/replicate)
+- Technical Replicate (separate library preps from the same biological sample/replicate)
+
+Other naming convention rules: 
+
+ - No special characters besides "_" "-" or "."
 
 # An example ChIP-wrangler workflow start to finish
 
@@ -254,18 +272,17 @@ In this example, the target normalized tag directories are in `hg38_normalized_t
 
 Genomes Downloaded with HOMER: hg38, dm6, sacCer3
 
-
 Only needed if you have never aligned fastq files to a particular genome before (or if updating to a newer version of the genome i.e. human hg19 to human hg38). The easiest way to install a genome is with HOMER. First, check if HOMER already has the genome by asking it to list all packages:
 
-`perl /gpfs/data01/bennerlab/path/to/homer/configureHomer.pl -list`
+`perl /path/to/homer/configureHomer.pl -list`
 
 If you see the genome you want (Ex: hg38): then install with:
 
-`perl /gpfs/data01/bennerlab/path/to/homer/configureHomer.pl -install hg38`
+`perl /path/to/homer/configureHomer.pl -install hg38`
 
 http://homer.ucsd.edu/homer/introduction/install.html
 
-Some notes on genome names
+Some notes on genome names:
 
 The genomes configured with HOMER are safe for all ChIP-wrangler functions. However, custom genomes may contain characters that will interfere with downstream processes. ChIP-wrangler takes in the genome names given for spike-in species to add custom labels to the chromosome headers in the fasta files. The following names will cause problems:
 
@@ -278,33 +295,28 @@ The genomes configured with HOMER are safe for all ChIP-wrangler functions. Howe
 
 Additionally, if the custom genome name is very long it creates long header names in combined FASTAs and downstream steps which can cause problems later. 
 
-The `00_preprocessing` step will automatically strip special characters from the genome names specified, and truncate at 20 characters, which will prevent most issues. However, the user can also add their own desired genome labels in the script directly. The below example is used for the *S. cerevisiae* genome sacCer3, where we label chromosomes with "sac3" instead of "sacCer3".
-
-Inside 00_preprocessing: 
-
-    suffix_name_map = {
-    "sacCer3": "sac3"
-    }
-
+The `00_preprocessing` step will automatically strip special characters from the genome names specified, and truncate at 20 characters, which will prevent most issues. However, the user can also add their own desired genome labels in the script directly. The below example is used for the *S. cerevisiae* genome sacCer3, where we label chromosomes with "sac3" instead of "sacCer3". The optional argument --spikein_genomes_symbols can be used to create custom spike-in genome labels
 
 ## 00_preprocessing
 
 ### Required Arguments: 
 
- - user_dir = User's working directory
- - target_genome = "hg38"
- - spikein_genomes = dm6 sacCer3 (one spike-in genome input is accepted)
+ - user_dir = working directory
+ - target_genome = path to fasta file of target genome
+ - spikein_genomes = paths to fasta files of spike-in genomes
 
 ### Optional arguments: 
+
+ - user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
  - spikein_genomes_symbols = `["dm6", "sac3"]` if the user wants custom labels for downstream
 
 Usage:
 
-        00_preprocessing.py --user_dir USER_DIR --target_genome TARGET_GENOME --spikein_genomes SPIKEIN_GENOMES 
+        00_preprocessing.py --user_dir USER_DIR --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa
 
 ### Output: 
 
-`genomes/target_spikein1_spikein2/` folder of indexed custom genome, named with the target genome/spike-in genome names given
+`target_spikein1_spikein2/` folder of indexed custom genome, named with the target genome/spike-in genome names given
 
 ### General workflow:
 
@@ -325,7 +337,7 @@ We can double check by printing fastq headers
 
 Concatenate all genome files:
 
-`cat ./hg38/genome.fa ./dm6/genome_dm6.fa ./sac3/genome_sac3.fa > genome_hg38_dm6_sac3.fa`
+`cat genome_hg38.fa genome_dm6.fa genome_sac3.fa > genome_hg38_dm6_sac3.fa`
 
 Now we can index the genome fasta file, using the preferred aligner. For example: 
 
@@ -338,20 +350,6 @@ The first argument “genome_prefix” will the prefix of the indexed genome fil
 
 #### Sample metadata file
 
-Samples must be named according to the following convention:
-
-CellType_Treatment_Timepoint_BiologicalReplicate_Antibody_TechnicalReplicate
-
-The Treatment/Timepoint columns can be used as needed, but they each are a place to put sample conditions, or categorical variables explaining the experiment. In the given example experiment, where mitotic and interphase HeLaS3 cells are combined in different ratios to create a titration of H3K9ac levels, the samples containing 100% mitotic cells are named `HelaS3_100sync_0inter_1_H3K9ac_1` while the samples containing 50% mitotic and 50% interphase cells are named `HelaS3_50sync_50inter_1_H3K9ac_1`
-
-- Antibody (usually I have multiple IP samples from each biological sample/replicate)
-- Technical Replicate (separate library preps from the same biological sample/replicate)
-
-
-Other naming convention rules: 
-
- - No special characters besides "_" "-" or "."
-
 The metadata file is simply a tab-separated text file with one column named "library.ID", and filled with sample names. You can make this in excel/notepad, or, if you are in the directory containing fastq files you can generate it programatically: 
 
 `(echo -e "library.ID"; for i in *.fastq.gz; do echo "${i%.fastq.gz}"; done) > sample_names.tsv`
@@ -362,13 +360,13 @@ Be mindful if you have paired end reads, etc. as there should be only one row/en
 
 ### Required Arguments
 
- - user_dir: working directory, from which fastq files are found
  - paired_end or single_end
 
 ### Optional Arguments
 
+ - user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
  - threads
- - desired PHRED score cutoff (default: 20 in a 4bp window)
+ - phred_cutoff: desired PHRED score cutoff (default: 20 in a 4bp window)
 
 Usage:
 
@@ -391,11 +389,12 @@ Default settings:
 
 ### Required arguments: 
 
-- paired-end or single end
+- genome_dir: the path to the BWA-indexed genome
 
 ### Optional arguments: 
 
 - threads
+- paired-end or single end
 - seed length (for short reads)
 
 ### Outputs
@@ -419,11 +418,11 @@ Recommended BWA MEM settings for paired-end data, with short reads (< 20 on at l
 
 ### Required arguments
 
- - user_dir: working directory
  - umis: TRUE/FALSE
 
 ### Optional arugments
 
+- user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
  - threads
  - paired/single-end: if user has paired end reads, specifying paired-end will decrease the pcr duplicate rate as samtools markdup will count reads as duplicates only when the 5' ends of both pairs map to the same locations
 
@@ -466,12 +465,13 @@ Inside `concat_align/dedup_out` are the bam files, either deduplicated to only k
 
 ### Required arguments: 
 
-- user_dir = User's working directory
 - spike_species_1 
 - spike_species_2 
 - target_species
 
 ### Optional arguments:
+
+- user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
 - mapq_threshold = default 50
 - max_threads = default 4
 
@@ -545,13 +545,13 @@ We remove the suffixes from the chromosome names of both spike-in speices, and o
 
 ### Required Arguments:
 
-- user_dir = Users working directory
 - target_species
 - spike1_species
 - spike2_species
 
 ### Optional Arguments:
 
+- user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
 - control_conditions (default none): The user is not required, but strongly recommended to chose a sample/set of samples that are the control conditions, to be used as a reference point when adjusting normalization factors between the two spike-in species. Details are below. 
 - samtools_path: if not in users PATH
 
@@ -624,7 +624,7 @@ For example, take the condition from the plot above with all unsychonized, inter
 
 ![image.png](readme_assets/18fec40f-bb3b-48ea-bccb-9b173526145e.png)
 
-In the input library, *H. sapiens* takes up the vast majority of reads (~98%). However, in the IP libraries, only ~67% of reads align to *H. sapiens*. Here, the ratio of *D. melanogaster*/*H.sapiens* reads in a H3K9ac IP library are roughly 2.5-fold the ratio of *D. melanogaster*/*H.sapiens* in their corresponding input library, meaning the value of dm6 IP/input for this sample is 2.5. Meanwhile, the ratio of *S. cerevisiae*/*H. sapiens* in the same H3K9ac IP sample is around 15-fold that of the input ratio.
+In the input library in the example above, *H. sapiens* takes up the vast majority of reads (~98%). However, in the IP libraries, only ~90.2% of reads align to *H. sapiens*. Here, the ratio of *D. melanogaster*/*H.sapiens* reads in a H3K9ac IP library are roughly 2.5-fold the ratio of *D. melanogaster*/*H.sapiens* in their corresponding input library, meaning the value of dm6 IP/input for this sample is 2.5. Meanwhile, the ratio of *S. cerevisiae*/*H. sapiens* in the same H3K9ac IP sample is around 15-fold that of the input ratio.
 
 Below, we plot the IP/input-derived normalization factors from each spike-in species:
 
@@ -646,13 +646,13 @@ Spike-in normalization *can* be performed with these normalization factors, howe
 
 ### Required arguments
 
-- user_dir: working directory
 - target_species
 - spike1_species
 - spike2_species
 
 ### Optional arguments
 
+- user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
 - frag_length: fragment length to set when creating HOMER tag directories
 - SNR_region: region at which IP signal is calculated for spike-in species (default is TSS regions)
 - hist_size: size around SNR region to calculate (default +/- 2kb)
@@ -661,14 +661,15 @@ Spike-in normalization *can* be performed with these normalization factors, howe
 
 usage: 
 
-    06_estimate_spikein_snr.py 
-    --user_dir USER_DIR 
+    06_estimate_spikein_snr.py  
     --target_species TARGET_SPECIES 
     --spike1_species SPIKE1_SPECIES 
     --spike2_species SPIKE2_SPECIES 
+    --user_dir USER_DIR
     --SNR_region REGION --homer_path HOMER 
     --frag_length INT --hist_size INT 
     --hist_bin INT --experiment_id ID
+    --start_position INT --end_position INT 
 
 ### inputs
 
@@ -708,7 +709,8 @@ We quantify signal at the TSS by calculating the area under the curve of the cov
 ![image.png](readme_assets/b14c218c-cec8-4392-9e19-60c3536360e3.png)
 ![image.png](readme_assets/9f248893-169d-45e0-ad5e-bfb0dbedb20b.png)
 
-
+The area under the curve is calculated by default within -100 to +700 bp from TSS (which usually has maximum signal for active/promoter-associated histone marks). If you believe your IP target enrichment is elsewhere, modify the optional arguments: `start_position` and `end_position`. Want to know where your IP target is most enriched? Plot `Coverage` vs `Distance_from_tss` columns in the spike-in histograms made in the previous step! They are located in `spike_species_data/spike_species_histograms/` folders
+    
 We use the TSS Coverage in the input sample to estimate background signal, subtracting from the H3K27ac coverage, to estimate the IP efficiency in each spike-in sample. 
 
 *Note*: If the target epitope is not an active histone mark, IP signal can be quantified at peak regions, or other epitope-relevant genomic regions (for example, gene bodies for H3K36me3). 

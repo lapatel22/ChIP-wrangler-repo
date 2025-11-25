@@ -8,10 +8,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def generate_species_bams(
-    user_dir: str,
-    spike_species_1: str,
-    spike_species_2: str,
+    spike1_species: str,
+    spike2_species: str,
     target_species: str,
+    user_dir: str,
     mapq_threshold: int = 50,
     threads: int = 4,
 ):
@@ -23,9 +23,9 @@ def generate_species_bams(
     output_dir = user_dir / "bams_chr_sep"
     filtered_dir = user_dir / "filtered_bams"
 
-    bamutil_path = "/home/lahodge/miniconda3/envs/chip_wrangler_env/bin/bam"       # bamUtil binary
+    bamutil_path = "bam"       # bamUtil binary
     samtools_path = "samtools" # samtools binary
-    suffix_to_remove = ".concat.nodup.bam"
+    suffix_to_remove = ".nodup.bam"
 
     output_dir.mkdir(parents=True, exist_ok=True)
     filtered_dir.mkdir(parents=True, exist_ok=True)
@@ -101,14 +101,14 @@ def generate_species_bams(
     print("\n=== Step 3: Merging chromosomes by species ===")
 
     species_map = {
-        spike_species_1: user_dir / f"{spike_species_1}_data" / f"{spike_species_1}_aligned",
+        spike1_species: user_dir / f"{spike1_species}_data" / f"{spike1_species}_aligned",
         target_species: user_dir / f"{target_species}_data" / f"{target_species}_aligned",
     }
 
     # Only include spike2 if it's real
-    spike2_present = spike_species_2.lower() not in ["none", "na", "null", "0", ""]
+    spike2_present = spike2_species.lower() not in ["none", "na", "null", "0", ""]
     if spike2_present:
-        species_map[spike_species_2] = user_dir / f"{spike_species_2}_data" / f"{spike_species_2}_aligned"
+        species_map[spike2_species] = user_dir / f"{spike2_species}_data" / f"{spike2_species}_aligned"
 
     # Create directories
     for path in species_map.values():
@@ -123,16 +123,16 @@ def generate_species_bams(
         base = bam.stem.replace(".filtered", "")
 
         # Move spike-in chromosome BAMs
-        for species in [spike_species_1, spike_species_2] if spike2_present else [spike_species_1]:
+        for species in [spike1_species, spike2_species] if spike2_present else [spike1_species]:
             for f in output_dir.glob(f"{base}.chr*_{species}.bam"):
                 f.rename(spike_chr_dir / f.name)
 
         outputs = {
-            spike_species_1: species_map[spike_species_1] / f"{base}.{spike_species_1}.bam",
+            spike1_species: species_map[spike1_species] / f"{base}.{spike1_species}.bam",
             target_species: species_map[target_species] / f"{base}.{target_species}.bam",
         }
         if spike2_present:
-            outputs[spike_species_2] = species_map[spike_species_2] / f"{base}.{spike_species_2}.bam"
+            outputs[spike2_species] = species_map[spike2_species] / f"{base}.{spike2_species}.bam"
 
         # Merge spike species
         for species in outputs:
@@ -184,9 +184,9 @@ def generate_species_bams(
 
             with open(nosuff_sam) as fin, open(nosuff2_sam, "w") as fout:
                 for line in fin:
-                    line = line.replace(f"_{spike_species_1}", "")
+                    line = line.replace(f"_{spike1_species}", "")
                     if spike2_present:
-                        line = line.replace(f"_{spike_species_2}", "")
+                        line = line.replace(f"_{spike2_species}", "")
                     fout.write(line)
 
             os.remove(nosuff_sam)
@@ -202,22 +202,20 @@ def generate_species_bams(
 
 def main():
     parser = argparse.ArgumentParser(description="Split and filter BAMs by species.")
-    parser.add_argument("--user_dir", required=True, help="Working directory for this dataset")
-
-    parser.add_argument("--spike1", required=True, help="Primary spike-in species (e.g., dm6)")
-    parser.add_argument("--spike2", required=True, help="Secondary spike-in species or 'none'")
-    parser.add_argument("--target", required=True, help="Target genome species (e.g., hg38)")
-
+    parser.add_argument("--spike1_species", required=True, help="Primary spike-in species (e.g., dm6)")
+    parser.add_argument("--spike2_species", required=True, help="Secondary spike-in species or 'none'")
+    parser.add_argument("--target_species", required=True, help="Target genome species (e.g., hg38)")
+    parser.add_argument("--user_dir", type=Path, default=Path.cwd(), help="Working directory (default: current working directory)")
     parser.add_argument("--threads", type=int, default=4, help="Threads for BAM processing")
     parser.add_argument("--mapq", type=int, default=50, help="Minimum MAPQ to keep")
 
     args = parser.parse_args()
 
     generate_species_bams(
+        spike1_species=args.spike1_species,
+        spike2_species=args.spike2_species,
+        target_species=args.target_species,
         user_dir=args.user_dir,
-        spike_species_1=args.spike1,
-        spike_species_2=args.spike2,
-        target_species=args.target,
         mapq_threshold=args.mapq,
         threads=args.threads,
     )

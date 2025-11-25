@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument("--target_species", required=True, help="Primary genome (e.g. hg38)")
     parser.add_argument("--spike1_species", required=True, help="Spike-in species 1 (e.g. dm6)")
     parser.add_argument("--spike2_species", required=True, help="Spike-in species 2 (e.g. sac3)")
-    parser.add_argument("--user_dir", required=False, type=Path, default = ".", help="Base directory where *_data/ directories exist.")
+    parser.add_argument("--user_dir", required=False, type=str, default = ".", help="Base directory where *_data/ directories exist.")
     return parser.parse_args()
 
 
