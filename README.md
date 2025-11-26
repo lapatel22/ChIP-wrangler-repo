@@ -853,6 +853,10 @@ The final QC report includes:
 ## 10_DESeq2_with_ChIP-wrangler
 
 
+General considerations: 
+
+Add discussion of the potential impacts of spike-in normalization on downstream analyses such as DESeq2, and QCs that ChIP-wrangler provides for this step.
+
 ### Configurable variables 
 
 - adj pvalue cutoff: default padj = 0.05

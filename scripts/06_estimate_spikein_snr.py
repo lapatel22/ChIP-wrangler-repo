@@ -435,7 +435,7 @@ def main():
     print("Merging with metadata and normalizing...")
     seqstats_norm = normalize_and_merge(
         seqstats, dm6_signal, sac3_signal,
-        control_pattern="HelaS3_100sync_0inter_"
+        control_pattern=control_pattern
     )
 
     dm6_signal.to_csv("dm6_H3K9ac_signal.tsv", sep="\t", index=False)
