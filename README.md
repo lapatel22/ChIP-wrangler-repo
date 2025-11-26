@@ -1,7 +1,14 @@
 # Table of Contents
 - [Getting Started](#Getting-started)
+  - [Installation](#Installation)
+  - [Running `wrangle_all`](#Running-`wrangle_all`)
+  - [Running functions separately](#Running-functions-separately)
+  - [Choice of controls and sample naming](#Choice-of-controls-and-sample-naming)
 - [An example ChIP-wrangler workflow start to finish](#An-example-ChIP-wrangler-workflow-start-to-finish)
+  - [Example dataset](#Example-dataset)
+  - [Expected outcomes](#Expected-outcomes)
 - [Detailed workflow](#Detailed-workflow)
+  - [Before running ChIP-wrangler](#Before-running-ChIP-wrangler)
   - [00_preprocessing](#00_preprocessing)
   - [01_trimming_fastqs](#01_trimming_fastqs)
   - [02_alignment](#02_alignment_to_concatenated_genome)
@@ -126,6 +133,7 @@ For the tutorial, we run `wrangle_all` with the following parameters:
 - target_genome = hg38
 - spike1_genome = dm6
 - spike2_genome = sacCer3
+- control_pattern
 - single_end
 - have_umis = False
 - samples = sample_names.tsv
@@ -135,9 +143,8 @@ For the tutorial, we run `wrangle_all` with the following parameters:
 Example: 
 
     python run_wrangle_all.py \
-    --user_dir . \
     --genomes hg38 dm6 sacCer3 \
-    --output_dir ./chip_wrangled_outputs \
+    -- control_pattern HeLaS3_100sync_0inter \
     --single_end \
     --threads 8 \
     --umis FALSE
@@ -147,26 +154,27 @@ Example:
 
 The ChIP-wrangler workflow, if running each function separately is: 
 
-`00_preprocessing.py --user_dir USER_DIR --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa`
+`00_preprocessing.py --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa`
 
-`01_trimming.py --fastq_dir FASTQ_DIR --output_dir OUTPUT_DIR --paired_end --threads THREADS`
+`01_trimming.py --paired_end --threads THREADS`
 
-`02_alignment.py --user_dir USER_DIR --target_genome TARGET_GENOME --spikein_genomes SPIKEIN_GENOMES SPIKEIN_GENOMES ... --threads THREADS --paired`
+`02_alignment.py --target_genome TARGET_GENOME --spikein_genomes SPIKEIN_GENOMES SPIKEIN_GENOMES ... --threads THREADS --paired`
 
-`03_remove_duplicates.py --user_dir USER_DIR --paired --umis TRUE/FALSE --threads THREADS`
+`03_remove_duplicates.py --paired --umis TRUE/FALSE --threads THREADS`
 
-`04_generate_species_bams.py --user_dir USER_DIR --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads THREADS --mapq MAPQ_CUTOFF`
+`04_generate_species_bams.py --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads THREADS --mapq MAPQ_CUTOFF`
 
-`05_get_sequencing_stats.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --samtools_path SAMTOOLS_PATH --control_conditions CONTROL_CONDITIONS`
+`05_get_sequencing_stats.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --samtools_path SAMTOOLS_PATH --control_conditions CONTROL_CONDITIONS`
 
-`06_estimate_spikein_snr.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --SNR_region REGION --homer_path HOMER --frag_length INT --hist_size INT --hist_bin INT --experiment_id ID`
+`06_estimate_spikein_snr.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --SNR_region REGION --homer_path HOMER --frag_length INT --hist_size INT --hist_bin INT --experiment_id ID`
 
-`07_normalize_tagdirs.py  --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
+`07_normalize_tagdirs.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
 `
 
-`08_QC_data.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
+`08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
 ` `
+
 
 `Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
 
@@ -659,12 +667,13 @@ Spike-in normalization *can* be performed with these normalization factors, howe
 
 ### Optional arguments
 
-- user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
-- frag_length: fragment length to set when creating HOMER tag directories
-- SNR_region: region at which IP signal is calculated for spike-in species (default is TSS regions)
-- hist_size: size around SNR region to calculate (default +/- 2kb)
-- hist_bin: bin size for histogram (default 25bp)
-- experiment_id: optional, will label the histogram output files with this ID
+- control_pattern = your control condition. This should be a string that partially matches at least one sample. 
+- user_dir = if you are not in the ChIP-wrangler working directory, specify the path here
+- frag_length = fragment length to set when creating HOMER tag directories
+- SNR_region = region at which IP signal is calculated for spike-in species (default is TSS regions)
+- hist_size = size around SNR region to calculate (default 4000, +/- 2kb)
+- hist_bin = bin size for histogram (default 25bp)
+- experiment_id = optional, will label the histogram output files with this ID
 
 usage: 
 
@@ -672,6 +681,7 @@ usage:
     --target_species TARGET_SPECIES 
     --spike1_species SPIKE1_SPECIES 
     --spike2_species SPIKE2_SPECIES 
+    --control_pattern CONTROL_PATTERN
     --user_dir USER_DIR
     --SNR_region REGION --homer_path HOMER 
     --frag_length INT --hist_size INT 
