@@ -109,11 +109,11 @@ The following packages are not required, but used in the tutorial and example wo
 
 There are a few requirements before running ChIP-wrangler:
 
-1. Pre-loaded genome fasta files. In the example tutorial below, the genomes are:
+1. Genome fasta files in a genome folder named "genomes". In the example tutorial below, the genomes are:
 
     dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
 
-2. Fastq files in a folder inside the working directory
+2. Fastq files in a folder named "fastqfiles" inside the working directory
 
 3. A metadata file, listing the samples in the fastq file directory (without added R1/R2, file suffixes, etc).
 
@@ -185,7 +185,7 @@ Example:
 
 ## Running each function separately
 
-The ChIP-wrangler workflow, if running each function separately is: 
+Below are the commands that constitute the ChIP-wrangler workflow and would normally be executed by `wrangle_all`. Below are the commands with required arguments. This assumes a directory structure as detailed above and that the user is in the base directory. If necessary, the user can specify the path to the base directory instead.
 
 `00_preprocessing.py --target_genome TARGET_GENOME.fa TARGET_NAME --spike1_genome SPIKE1_GENOME.fa SPIKE1_NAME --spike2_genome SPIKE2_GENOME.fa SPIKE2_NAME`
 
@@ -199,39 +199,37 @@ The ChIP-wrangler workflow, if running each function separately is:
 
 `05_get_sequencing_stats.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --samtools_path SAMTOOLS_PATH --control_conditions CONTROL_CONDITIONS`
 
-`06_estimate_spikein_snr.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --SNR_region REGION --homer_path HOMER --frag_length INT --hist_size INT --hist_bin INT --experiment_id ID`
+`06_estimate_spikein_snr.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
 `07_normalize_tagdirs.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
 `
 
 `08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
-
-`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
+`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions condition1,condition2 --outprefix deseq_condition1_vs_condition2`
 
 Below is an example of real arguments: 
 
-`00_preprocessing.py --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa`
+`00_preprocessing.py --target_genome hg38_genome.fa hg38 --spike1_genome dm6_genome.fa dm6 --spike2_genome sacCer3_genome.fa sac3`
 
-`01_trimming.py --paired_end --threads THREADS`
+`01_trimming.py --paired_end FALSE --threads 4`
 
-`02_alignment.py --target_genome TARGET_GENOME --spikein_genomes dm6 sacCer3 ... --threads THREADS --paired`
+`02_alignment.py --target_genome hg38 --spikein_genomes dm6 sacCer3 ... --threads 4 --paired FALSE`
 
-`03_remove_duplicates.py --paired --umis TRUE/FALSE --threads THREADS`
+`03_remove_duplicates.py --paired --umis FALSE --threads 4`
 
-`04_generate_species_bams.py --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads THREADS --mapq MAPQ_CUTOFF`
+`04_generate_species_bams.py --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads 4 --mapq 50`
 
-`05_get_sequencing_stats.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --samtools_path SAMTOOLS_PATH --control_conditions CONTROL_CONDITIONS`
+`05_get_sequencing_stats.py --target_species hg38 --spike1_species dm6 --spike2_species sac3 --control_conditions None`
 
-`06_estimate_spikein_snr.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --SNR_region REGION --homer_path HOMER --frag_length INT --hist_size INT --hist_bin INT --experiment_id ID`
+`06_estimate_spikein_snr.py --target_species hg38 --spike1_species dm6 --spike2_species sac3`
 
-`07_normalize_tagdirs.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
+`07_normalize_tagdirs.py --target_species hg38 --spike1_species dm6 --spike2_species sac3
 `
 
-`08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
+`08_QC_data.py --target_species hg38 --spike1_species dm6 --spike2_species sac3`
 
-
-`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
+`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions treatment,control --outprefix deseq_treatment_vs_control`
 
 # An example ChIP-wrangler workflow start to finish
 
@@ -368,7 +366,7 @@ Usage:
 
 ### Output: 
 
-`target_spikein1_spikein2/` folder of indexed custom genome, named with the target genome/spike-in genome names given
+The folder `target_spikein1_spikein2/` containing the indexed custom genome is created, named with the target genome/spike-in genome names given
 
 ### General workflow:
 
