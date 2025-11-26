@@ -74,7 +74,7 @@ One liner to install chip-wrangler
 
 `git clone .....`
 
-This will download the local python scripts used for this analysis. To run each function separately see section ## [Running each function separately]
+This will download the local python scripts used for this analysis. To run each function separately see section [Running each function separately]
 
 Add the one liner for the conda details...
 
@@ -154,13 +154,11 @@ Other naming convention rules:
 When you begin, your working directory should look like: 
 
     $ ls user_dir
-    fastqfiles/  sample_names.tsv  scripts/ genomes/
+    fastqfiles/ sample_names.tsv genomes/
 
-The user can place this directory wherever they chose. ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
+ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
 
 ![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
-
-
 
 ### Wrangle_all
 
@@ -174,7 +172,6 @@ For the tutorial, we run `wrangle_all` with the following parameters:
 - have_umis = False
 - samples = sample_names.tsv
 - epitope_type = histone
-
 
 Example: 
 
@@ -190,7 +187,7 @@ Example:
 
 The ChIP-wrangler workflow, if running each function separately is: 
 
-`00_preprocessing.py --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa`
+`00_preprocessing.py --target_genome TARGET_GENOME.fa TARGET_NAME --spike1_genome SPIKE1_GENOME.fa SPIKE1_NAME --spike2_genome SPIKE2_GENOME.fa SPIKE2_NAME`
 
 `01_trimming.py --paired_end --threads THREADS`
 
@@ -209,7 +206,29 @@ The ChIP-wrangler workflow, if running each function separately is:
 
 `08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
-` `
+
+`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
+
+Below is an example of real arguments: 
+
+`00_preprocessing.py --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa`
+
+`01_trimming.py --paired_end --threads THREADS`
+
+`02_alignment.py --target_genome TARGET_GENOME --spikein_genomes dm6 sacCer3 ... --threads THREADS --paired`
+
+`03_remove_duplicates.py --paired --umis TRUE/FALSE --threads THREADS`
+
+`04_generate_species_bams.py --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads THREADS --mapq MAPQ_CUTOFF`
+
+`05_get_sequencing_stats.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --samtools_path SAMTOOLS_PATH --control_conditions CONTROL_CONDITIONS`
+
+`06_estimate_spikein_snr.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --SNR_region REGION --homer_path HOMER --frag_length INT --hist_size INT --hist_bin INT --experiment_id ID`
+
+`07_normalize_tagdirs.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES --frag_length
+`
+
+`08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
 
 `Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
@@ -335,7 +354,6 @@ The `00_preprocessing` step will automatically strip special characters from the
 
 ### Required Arguments: 
 
- - user_dir = working directory
  - target_genome = path to fasta file of target genome
  - spikein_genomes = paths to fasta files of spike-in genomes
 
@@ -346,7 +364,7 @@ The `00_preprocessing` step will automatically strip special characters from the
 
 Usage:
 
-        00_preprocessing.py --user_dir USER_DIR --target_genome TARGET_GENOME.fa --spikein_genomes SPIKE1_GENOME.fa SPIKE2_GENOME.fa
+        00_preprocessing.py --target_genome TARGET_GENOME.fa TARGET_NAME --spike1_genome SPIKE1_GENOME.fa SPIKE1_NAME --spike2_genome SPIKE2_GENOME.fa SPIKE2_NAME
 
 ### Output: 
 
