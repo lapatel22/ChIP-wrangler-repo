@@ -25,7 +25,9 @@
 
 # Getting started
 
-The following tutorial assumes a general knowledge of NGS data and ChIP-seq. For more details see [an overview of NGS analysis with HOMER](http://homer.ucsd.edu/homer/ngs/).
+This tutorial is for running the ChIP-wrangler pipeline for normalization of ChIP-seq data.
+
+It assumes a general knowledge of NGS data and ChIP-seq. For more details see [an overview of NGS analysis with HOMER](http://homer.ucsd.edu/homer/ngs/).
 
 ChIP-wrangler is suited for the normalization of ChIP-seq data when global changes are expected. It builds off of previous work by  [Orlando et al.](https://pubmed.ncbi.nlm.nih.gov/25437568/) where exogenous chromatin from another species is added to the samples ("spiked" in) before immunoprecipitation. The assumption is the exogenous spike-in chromatin is unaffected by the treatment conditions, while still being subject to technical variability experienced by the target sample. 
 
@@ -37,7 +39,7 @@ Spike-in normalization using two species with ChIP-wrangler is designed to preve
 
 ## The full pipeline
 
-ChIP-wrangler provides wrapper functions called `wrangle_all` . takes in fastq files and genomes used (target and spike-in) provided by the user, and provides ChIP-wrangler normalized target data, as well as a QC report. 
+ChIP-wrangler provides wrapper functions called `wrangle_all`. It takes in fastq files and genomes used (target and spike-in) provided by the user, and provides ChIP-wrangler normalized target data, as well as a QC report. 
 
 The general steps are as follows: 
 
@@ -51,8 +53,6 @@ The general steps are as follows:
  - **QC Report**: a report .html is generated visualizing nucleotide frequencies, spike-in target ratios, and other important quality checks
  - Downstream analysis, which can include:
    - **DESeq2 with ChIP-wrangler**: enabling identification of differential peaks
-   - Generating BigWigs
-   - Plotting of spike-in normalized data
 
 An in-depth explanation of each function is available in the [detailed workflow page](#Detailed-workflow).
 
@@ -67,6 +67,18 @@ An in-depth explanation of each function is available in the [detailed workflow 
 ![image.png](readme_assets/f38669a3-4ffa-4f14-b029-01a637aa1d35.png)
 
 ## Installation
+
+The `chip_wranlger_env.yml` file is included for conda installation, to  help handle dependencies. 
+
+One liner to install chip-wrangler
+
+`git clone .....`
+
+This will download the local python scripts used for this analysis. To run each function separately see section ## [Running each function separately]
+
+Add the one liner for the conda details...
+
+ChIP-wrangler has the following dependencies, shown below: 
 
 ### Dependencies
 
@@ -92,21 +104,21 @@ The following packages are not required, but used in the tutorial and example wo
 
 ## Running `wrangle_all`
 
-### Before you begin: 
+
+### Input data 
 
 There are a few requirements before running ChIP-wrangler:
 
-1. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is a required argument: "user_dir". The user can place this directory wherever they chose. ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
-
-![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
-
-2. Pre-loaded genome fasta files. In the example tutorial below, the genomes are:
+1. Pre-loaded genome fasta files. In the example tutorial below, the genomes are:
 
     dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
 
-3. Fastq files in a folder inside the working directory
+2. Fastq files in a folder inside the working directory
 
-4. A metadata file, listing the samples in the fastq file directory (without added R1/R2, file suffixes, etc).
+3. A metadata file, listing the samples in the fastq file directory (without added R1/R2, file suffixes, etc).
+
+TO ADD: columns sample_name, file_name, cell, treatment_condition1, treatment_condition2, bioloigical_replicate, IP, technical_replicate
+User must specify these columns so that ChIP-wrangler knows what samples to use as a reference when normalizing, which samples are inputs, etc.
 
         head sample_names.tsv 
         library.ID
@@ -119,12 +131,36 @@ There are a few requirements before running ChIP-wrangler:
         HelaS3_100sync_0inter_1_H3K9ac_3
         HelaS3_100sync_0inter_1_input_1
 
-This can be easily created by running: `(echo -e "library.ID"; for i in *.fastq.gz; do echo "${i%.fastq.gz}"; done) > sample_names.tsv` inside the folder containing fastq files, or simply pasting your sample names into an excel sheet/notepad, naming the column "library.ID", and saving as a tsv.
+## Choice of controls and sample naming
+
+Samples should be named according to the following convention:
+
+CellType_Treatment_Timepoint_BiologicalReplicate_Antibody_TechnicalReplicate
+
+The Treatment/Timepoint columns can be used as needed, but they each are a place to put sample conditions, or categorical variables explaining the experiment. 
+
+In the given example experiment, where mitotic and interphase HeLaS3 cells are combined in different ratios to create a titration of H3K9ac levels, the samples containing 100% mitotic cells are named `HelaS3_100sync_0inter_1_H3K9ac_1` while the samples containing 50% mitotic and 50% interphase cells are named `HelaS3_50sync_50inter_1_H3K9ac_1`
+
+- Antibody (usually I have multiple IP samples from each biological sample/replicate)
+- Technical Replicate (separate library preps from the same biological sample/replicate)
+
+Other naming convention rules: 
+
+ - No special characters besides "_" "-" or "."
+
+
+4. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is an argument: "user_dir".
 
 When you begin, your working directory should look like: 
 
     $ ls user_dir
     fastqfiles/  sample_names.tsv  scripts/ genomes/
+
+The user can place this directory wherever they chose. ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
+
+![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
+
+
 
 ### Wrangle_all
 
@@ -133,7 +169,7 @@ For the tutorial, we run `wrangle_all` with the following parameters:
 - target_genome = hg38
 - spike1_genome = dm6
 - spike2_genome = sacCer3
-- control_pattern
+- control_pattern = the control condition that will act as a reference, where 
 - single_end
 - have_umis = False
 - samples = sample_names.tsv
@@ -177,23 +213,6 @@ The ChIP-wrangler workflow, if running each function separately is:
 
 
 `Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
-
-## Choice of controls and sample naming
-
-Samples should be named according to the following convention:
-
-CellType_Treatment_Timepoint_BiologicalReplicate_Antibody_TechnicalReplicate
-
-The Treatment/Timepoint columns can be used as needed, but they each are a place to put sample conditions, or categorical variables explaining the experiment. 
-
-In the given example experiment, where mitotic and interphase HeLaS3 cells are combined in different ratios to create a titration of H3K9ac levels, the samples containing 100% mitotic cells are named `HelaS3_100sync_0inter_1_H3K9ac_1` while the samples containing 50% mitotic and 50% interphase cells are named `HelaS3_50sync_50inter_1_H3K9ac_1`
-
-- Antibody (usually I have multiple IP samples from each biological sample/replicate)
-- Technical Replicate (separate library preps from the same biological sample/replicate)
-
-Other naming convention rules: 
-
- - No special characters besides "_" "-" or "."
 
 # An example ChIP-wrangler workflow start to finish
 
