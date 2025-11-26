@@ -63,6 +63,7 @@ An in-depth explanation of each function is available in the [detailed workflow 
 
 ### Dependencies
 
+for `wrangle_all`:
  - HOMER
  - Samtools
  - bamUtil
@@ -70,14 +71,16 @@ An in-depth explanation of each function is available in the [detailed workflow 
  - R
  - pandas
 
+`wrangle_analysis` additionally requires:
+ - DESeq2
+ - apeglm
+
 The following packages are not required, but used in the tutorial and example workflow
 
  - fastp (or similar method of removing library adapters)
  - BWA or Bowtie2
  - UMI tools (if libraries contain umis for deduplication)
  - deeptools
- - DESeq2
- - apeglm
  - ggplot
 
 ## Running `wrangle_all`
@@ -165,11 +168,7 @@ The ChIP-wrangler workflow, if running each function separately is:
 
 ` `
 
-`10 diff_output <- deseq_with_chipwrangler(
-    counts_file = "raw_counts.tsv",
-    sample_metadata = "sample_metadata.norm.tsv",
-    conditions = list("TRP_0hr", "TRP_4hr")   # or reversed
-)`
+`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter`
 
 ## Choice of controls and sample naming
 
@@ -770,8 +769,6 @@ Usage:
     --spike2_species SPIKE2_SPECIES 
     --frag_length INT
 
-
-
 ### inputs
 
 - metadata.tsv containing columns: `library.ID`, `IP`, `dm6.normfactor.ipeff.adj`, `sac3.normfactor.ipeff.adj`
@@ -822,7 +819,6 @@ sac3_basedist.tsv
 
 ### Output
 
-
 For IP samples:
 
     Sample: HelaS3_0sync_100inter_1_H3K9ac_3
@@ -834,7 +830,6 @@ For IP samples:
     sac3 Normalization factor:  0.294
     dual Normalization factor: 0.281
     Spike-in normalization factors in similar range
-
 
 For input samples: 
 
@@ -860,20 +855,31 @@ The final QC report includes:
 
 ## 10_DESeq2_with_ChIP-wrangler
 
-General considerations: 
+    Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_tss_hg38_raw_LP78.txt --metadata sample_metadata.norm.tsv --conditions 100sync_0inter,0sync_100inter --outprefix deseq_100sync_0inter_vs_0sync_100inter
+    Running DESeq2 with ChIP-wrangler normalization...
+    Counts file:    counts_tss_hg38_raw_LP78.txt
+    Metadata file:  sample_metadata.norm.tsv
+    Conditions:     100sync_0inter vs 0sync_100inter
+    Output prefix:  deseq_100sync_0inter_vs_0sync_100inter
+    Shrinkage coefficient will be: condition_0sync_100inter_vs_100sync_0inter
+    converting counts to integer mode
 
-Add discussion of the potential impacts of spike-in normalization on downstream analyses such as DESeq2, and QCs that ChIP-wrangler provides for this step.
+### Required Arguments: 
 
-### Configurable variables 
+- Counts file = path to raw counts file 
+- Metadata file = path to sample_metadata.norm.tsv containing the column `dual.normfactor.ipeff.adj`
+- Conditions = The two conditions to compare with DESeq (in the tutorial: `100sync_0inter,0sync_100inter`)
+- Output prefix = prefix for the files that will be created (in tutorial: `deseq_100sync_0inter_vs_0sync_100inter`)
 
-- adj pvalue cutoff: default padj = 0.05
-- Log2FC cutoff: default Log2FC = 1 (2 fold change)
-- shrinkage method: default apeglm as recommended by DESeq2
+### Optional Arguments: 
 
-### inputs
+- adj_pval = adj pvalue cutoff: default padj = 0.05
+- log2fc = default Log2FC = 1 (2 fold change)
+- shrinkage = shrinkage method (default `apeglm` as recommended by DESeq2, other option `normal`)
 
-- raw counts file at shared peaks
-- metadata sheet containing column: dual.normfactor.ipeff.adj 
+### Considerations
+
+Spike-in normalization uses a single scaling factor to transform genome-wide data: as a result, there is the potential impact on downstream analyses such as DESeq2. `ChIP-wrangler` accounts for this by running DESeq2 first with traditional read-depth normalization, then spike-in normalization, and examines the dispersion estimates/Log2 fold changes before and after
 
 ### General Workflow
 
