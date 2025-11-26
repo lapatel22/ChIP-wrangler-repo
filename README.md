@@ -163,6 +163,14 @@ The ChIP-wrangler workflow, if running each function separately is:
 
 `08_QC_data.py --user_dir USER_DIR --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
 
+` `
+
+`10 diff_output <- deseq_with_chipwrangler(
+    counts_file = "raw_counts.tsv",
+    sample_metadata = "sample_metadata.norm.tsv",
+    conditions = list("TRP_0hr", "TRP_4hr")   # or reversed
+)`
+
 ## Choice of controls and sample naming
 
 Samples should be named according to the following convention:
@@ -851,7 +859,6 @@ The final QC report includes:
 - Correlation of spike-in normalization factors
 
 ## 10_DESeq2_with_ChIP-wrangler
-
 
 General considerations: 
 
