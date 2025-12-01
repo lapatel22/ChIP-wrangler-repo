@@ -68,15 +68,18 @@ An in-depth explanation of each function is available in the [detailed workflow 
 
 ## Installation
 
+One liner to install chip-wrangler from GitHub:
+
+`git clone https://github.com/lapatel22/ChIP-wrangler-repo.git`
+
+This will download the local python scripts used for this analysis. To run each function separately see section [Running each function separately](#Running-each-function-separately)
+
 The `chip_wranlger_env.yml` file is included for conda installation, to  help handle dependencies. 
 
-One liner to install chip-wrangler
+To install all required and recommended dependencies from conda:
 
-`git clone .....`
-
-This will download the local python scripts used for this analysis. To run each function separately see section [Running each function separately]
-
-Add the one liner for the conda details...
+`conda env create -f environment.yml`
+`conda activate chip_wrangler_env`
 
 ChIP-wrangler has the following dependencies, shown below: 
 
@@ -91,6 +94,7 @@ for `wrangle_all`:
  - pandas
 
 `wrangle_analysis` additionally requires:
+
  - DESeq2
  - apeglm
 
@@ -115,9 +119,14 @@ There are a few requirements before running ChIP-wrangler:
 
 2. Fastq files in a folder named "fastqfiles" inside the working directory
 
-3. A metadata file, listing the samples in the fastq file directory (without added R1/R2, file suffixes, etc).
+3. A metadata file, which lists the samples in the fastq file directory and provides important information about the nature of the experimental desing. There are 5 required columns:
 
-TO ADD: columns sample_name, file_name, cell, treatment_condition1, treatment_condition2, bioloigical_replicate, IP, technical_replicate
+ - library.ID: sample name (without added R1/R2, file suffixes, etc) that you want to use for downstream analysis
+ - file_name: the full path to your fastq files and full file name
+ - biological replicate: 
+ - IP: antibody target, or `input`
+ - control condition: fill in yes/no if a sample is a control
+
 User must specify these columns so that ChIP-wrangler knows what samples to use as a reference when normalizing, which samples are inputs, etc.
 
         head sample_names.tsv 
@@ -214,18 +223,17 @@ Below is an example of real arguments:
 
 `01_trimming.py --paired_end FALSE --threads 4`
 
-`02_alignment.py --target_genome hg38 --spikein_genomes dm6 sacCer3 ... --threads 4 --paired FALSE`
+`02_alignment.py --target hg38 --spike1 dm6 --spike2 sacCer3 --threads 4 --paired FALSE`
 
 `03_remove_duplicates.py --paired --umis FALSE --threads 4`
 
 `04_generate_species_bams.py --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads 4 --mapq 50`
 
-`05_get_sequencing_stats.py --target_species hg38 --spike1_species dm6 --spike2_species sac3 --control_conditions None`
+`05_get_sequencing_stats.py --target hg38 --spike1 dm6 --spike2 sac3 --control_conditions None`
 
-`06_estimate_spikein_snr.py --target_species hg38 --spike1_species dm6 --spike2_species sac3`
+`06_estimate_spikein_snr.py --target hg38 --spike1 dm6 --spike2_species sac3`
 
-`07_normalize_tagdirs.py --target_species hg38 --spike1_species dm6 --spike2_species sac3
-`
+`07_normalize_tagdirs.py --target hg38 --spike1 dm6 --spike2 sac3`
 
 `08_QC_data.py --target_species hg38 --spike1_species dm6 --spike2_species sac3`
 
