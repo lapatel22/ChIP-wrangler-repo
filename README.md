@@ -72,7 +72,7 @@ One liner to install chip-wrangler from GitHub:
 
 `git clone https://github.com/lapatel22/ChIP-wrangler-repo.git`
 
-This will download the local python scripts used for this analysis. To run each function separately see section [Running each function separately](#Running-each-function-separately)
+This will download the local python scripts used for this analysis. To run each function separately see section [Running functions separately](#Running-functions-separately)
 
 The `chip_wranlger_env.yml` file is included for conda installation, to  help handle dependencies. 
 
@@ -107,7 +107,6 @@ The following packages are not required, but used in the tutorial and example wo
  - ggplot
 
 ## Running `wrangle_all`
-
 
 ### Input data 
 
