@@ -3,31 +3,25 @@
 Wrapper script to run the full ChIP-wrangler workflow from raw fastq to QC metrics.
 """
 
-### Example of how to run: 
-# python run_wrangle_all.py \
-#    --fastq_dir ./fastqfiles \
-#    --genomes hg38 dm6 sacCer3 \
-#    --output_dir ./chip_wrangled_outputs \
-#    --paired_end \
-#    --threads 8
-####
-
 import argparse
 import subprocess
+import sys
 from pathlib import Path
 
-# Import your functions
-from your_package import (
-    pre_processing as pp,           
-    trimming as trim,               
-    alignment as align,             
-    remove_pcr_dups as pcr,        
-    generate_species_bams as species_bams,  
-    sequencing_stats as stats,      
-    estimate_spikein_snr as snr,   
-    normalize_tagdirs as norm,      
-    qc_data as qc                   
-)
+# Make sure the scripts directory is on the PYTHONPATH
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.append(str(SCRIPT_DIR))
+
+# Now import the modules by filename (without .py)
+import preprocessing as pp
+import trimming as trim
+import alignment as align
+import remove_duplicates as pcr
+import generate_species_bams as species_bams
+import get_sequencing_stats as stats
+import estimate_spikein_ipeff as ipeff
+import normalize_tagdirs as norm
+import qc_data as qc
 
 
 def wrangle_all(
@@ -37,7 +31,9 @@ def wrangle_all(
     paired_end: bool = False,
     threads: int = 4,
     skip_trimming: bool = False,
-    skip_alignment: bool = False
+    skip_alignment: bool = False,
+    indexed_genome_dir: str = None,
+    fasta_paths: list = None
 ):
     """
     Runs the full ChIP-seq wrangling workflow with options to skip trimming or alignment.
@@ -47,10 +43,31 @@ def wrangle_all(
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True, parents=True)
 
-    print("STEP 0: Preprocessing")
-    pp.create_custom_genome(genome_names=genome_names, output_dir=output_dir)
-    pp.generate_sample_metadata(fastq_dir=fastq_dir, output_dir=output_dir)
+    # -------------------------------------------
+    # STEP 0: Decide whether to build custom genome
+    # -------------------------------------------
 
+    if indexed_genome_dir:
+        print("STEP 0: Skipping custom genome creation (using pre-indexed genome)")
+        genome_dir = Path(indexed_genome_dir)
+
+    else:
+        print("STEP 0: Preprocessing (custom genome creation)")
+
+        # New: pass ABSOLUTE FASTA FILES directly into your preprocessing function
+        pp.create_custom_genome(
+            genome_names=genome_names,
+            output_dir=output_dir,
+            fasta_paths=fasta_paths      # <–– NEW optional override
+        )
+
+        pp.generate_sample_metadata(fastq_dir=fastq_dir, output_dir=output_dir)
+
+        genome_dir = output_dir / "custom_genome"
+
+    # -------------------------------------------
+    # STEP 1: Trimming
+    # -------------------------------------------
     if not skip_trimming:
         print("STEP 1: Trimming")
         trim.trim_fastq(
@@ -61,11 +78,14 @@ def wrangle_all(
     else:
         print("STEP 1: Trimming skipped!")
 
+    # -------------------------------------------
+    # STEP 2: Alignment
+    # -------------------------------------------
     if not skip_alignment:
         print("STEP 2: Alignment")
         align.align_fastq(
             fastq_dir=output_dir/"fastq_trimmed",
-            genome_dir=output_dir/"custom_genome",
+            genome_dir=genome_dir,     # <–– dynamically chosen
             output_dir=output_dir/"concat_align",
             paired_end=paired_end,
             threads=threads
@@ -73,33 +93,51 @@ def wrangle_all(
     else:
         print("STEP 2: Alignment skipped!")
 
+    # -------------------------------------------
+    # STEP 3: Remove PCR duplicates
+    # -------------------------------------------
     print("STEP 3: Remove PCR duplicates")
     pcr.remove_duplicates(
         input_dir=output_dir/"concat_align",
         output_dir=output_dir/"concat_align/dedup_out"
     )
 
+    # -------------------------------------------
+    # STEP 4: Generate species-specific BAMs
+    # -------------------------------------------
     print("STEP 4: Generate species-specific BAMs")
     species_bams.split_species_bams(
         dedup_dir=output_dir/"concat_align/dedup_out",
         output_dirs={genome: output_dir/f"{genome}_data"/f"{genome}_aligned" for genome in genome_names}
     )
 
+    # -------------------------------------------
+    # STEP 5: Update sequencing stats
+    # -------------------------------------------
     print("STEP 5: Update sequencing stats")
     stats.update_sample_metadata(metadata_file=output_dir/"sample_metadata.tsv")
 
+    # -------------------------------------------
+    # STEP 6: Estimate spike-in SNR
+    # -------------------------------------------
     print("STEP 6: Estimate spike-in SNR")
     snr.estimate_spikein(
         metadata_file=output_dir/"sample_metadata.tsv",
         genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}
     )
 
+    # -------------------------------------------
+    # STEP 7: Normalize tag directories
+    # -------------------------------------------
     print("STEP 7: Normalize tag directories")
     norm.normalize_tagdirs(
         metadata_file=output_dir/"sample_metadata.tsv",
         genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}
     )
 
+    # -------------------------------------------
+    # STEP 8: Generate QC data
+    # -------------------------------------------
     print("STEP 8: Generate QC data")
     qc.generate_qc(
         metadata_file=output_dir/"sample_metadata.tsv",
@@ -111,13 +149,24 @@ def wrangle_all(
 
 def main():
     parser = argparse.ArgumentParser(description="Run full ChIP-seq wrangling workflow.")
-    parser.add_argument("--fastq_dir", required=True, help="Directory with raw fastq files")
-    parser.add_argument("--genomes", nargs="+", required=True, help="List of genomes, e.g. hg38 dm6 sacCer3")
-    parser.add_argument("--output_dir", required=True, help="Directory to store outputs")
-    parser.add_argument("--paired_end", action="store_true", help="Use if files are paired-end")
-    parser.add_argument("--threads", type=int, default=4, help="Number of threads for alignment/trimming")
-    parser.add_argument("--skip_trimming", action="store_true", help="Skip the trimming step")
-    parser.add_argument("--skip_alignment", action="store_true", help="Skip the alignment step")
+    parser.add_argument("--fastq_dir", required=True)
+    parser.add_argument("--genomes", nargs="+", required=True)
+    parser.add_argument("--output_dir", required=True)
+    parser.add_argument("--paired_end", action="store_true")
+    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--skip_trimming", action="store_true")
+    parser.add_argument("--skip_alignment", action="store_true")
+
+    # NEW ARGUMENTS:
+    parser.add_argument(
+        "--indexed_genome_dir",
+        help="If provided, skip custom genome creation and use this directory with BWA index files."
+    )
+    parser.add_argument(
+        "--fasta_paths",
+        nargs="+",
+        help="Absolute paths to FASTA files for custom combined genome construction."
+    )
 
     args = parser.parse_args()
 
@@ -128,7 +177,9 @@ def main():
         paired_end=args.paired_end,
         threads=args.threads,
         skip_trimming=args.skip_trimming,
-        skip_alignment=args.skip_alignment
+        skip_alignment=args.skip_alignment,
+        indexed_genome_dir=args.indexed_genome_dir,
+        fasta_paths=args.fasta_paths
     )
 
 

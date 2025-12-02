@@ -156,31 +156,28 @@ def update_sample_metadata(
         seqstats[s2_ratio] / seqstats[f"{spike2_species}_input"]
     )
 
-    # ================== Control Averages ==================
-    # ================== Control Averages ==================
-    if control_conditions is not None:
-        # -------------------------------
-        # USER PROVIDED CONTROL CONDITIONS
-        # -------------------------------
-        print(f"\nUsing user-specified control conditions: {control_conditions}")
+    # ================== Control Averages (FROM METADATA COLUMN) ==================
 
-        control_subset = seqstats.query(
-            "Condition in @control_conditions and IP != 'input'"
-        )
+    print("\nSelecting control samples based on metadata column 'Control' == TRUE")
 
-        if control_subset.empty:
-            print("\nWARNING: User provided control_conditions, "
-                  "but none matched. Falling back to all-sample normalization.\n")
+    # Control column may be bool or string ("TRUE"/"FALSE")
+    def is_true(x):
+        if isinstance(x, bool):
+            return x
+        if isinstance(x, str):
+            return x.strip().upper() == "TRUE"
+        return False
 
-            control_subset = seqstats.query("IP != 'input'")
-    else:
-    # -------------------------------
-    # NO user-provided controls → use ALL samples (IP-specific)
-    # -------------------------------
-        print("\nNo control_conditions provided; using ALL samples (per IP group).")
-        control_subset = seqstats.query("IP != 'input'")
+    df_updated["Control_flag"] = df_updated["Control"].apply(is_true)
 
-    # Compute control means
+    # Only IP samples should be used for control mean (exclude inputs)
+    control_subset = df_updated.query("Control_flag == True and IP != 'input'")
+
+    if control_subset.empty:
+        print("\nWARNING: No control samples found in metadata! Using ALL non-input samples instead.\n")
+        control_subset = df_updated.query("IP != 'input'")
+
+    # Compute control means per antibody/IP group
     control_means = (
         control_subset
         .groupby("IP")[
@@ -192,6 +189,20 @@ def update_sample_metadata(
             f"{spike2_species} IP/input": f"{spike2_species}_control_avg"
         })
         .reset_index()
+    )
+
+    # Merge back into df_updated
+    df_updated = df_updated.merge(control_means, on="IP", how="left")
+
+    # Normalized values
+    df_updated[f"{spike1_species} IP/input control averaged"] = (
+        df_updated[f"{spike1_species} IP/input"] /
+        df_updated[f"{spike1_species}_control_avg"]
+    )
+
+    df_updated[f"{spike2_species} IP/input control averaged"] = (
+        df_updated[f"{spike2_species} IP/input"] /
+        df_updated[f"{spike2_species}_control_avg"]
     )
 
     # Merge back
@@ -231,8 +242,6 @@ def main():
                         help="Working directory (default: current working directory)")
     parser.add_argument("--samtools_path", default="samtools",
                         help="Path to samtools executable")
-    parser.add_argument("--control_conditions", nargs="+",
-                        help="List of control conditions used for normalization")
 
     args = parser.parse_args()
 
@@ -242,7 +251,6 @@ def main():
         spike2_species=args.spike2_species,
         user_dir=args.user_dir,
         samtools_path=args.samtools_path,
-        control_conditions=args.control_conditions
     )
 
 

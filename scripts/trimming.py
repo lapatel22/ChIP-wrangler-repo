@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 """
 trimming.py — Run fastp on FASTQ files and output trimmed reads.
-
-Features:
-- Auto-detect paired vs single-end FASTQs
-- Uses fastp adapter autodetect
-- Sliding-window trimming: 4bp window, mean Q < 20
-- Minimum read length: 15bp
-- Skips trimming if output FASTQs already exist
 """
 
 import subprocess
@@ -15,6 +8,8 @@ from pathlib import Path
 import argparse
 import sys
 from contextlib import contextmanager
+
+# --------------- Logging Helpers --------------- #
 
 class Tee(object):
     def __init__(self, *streams):
@@ -39,17 +34,9 @@ def tee_stdout(log_path):
         finally:
             sys.stdout = old_stdout
 
-def detect_fastq_pairs(fastq_dir: Path):
-    """
-    Detect FASTQ files and group them into pairs or singles.
+# --------------- FASTQ Detection --------------- #
 
-    Returns:
-        list of dicts:
-        [
-          { "sample": "A", "R1": "A_R1.fastq.gz", "R2": "A_R2.fastq.gz" },
-          { "sample": "B", "R1": "B.fastq.gz",     "R2": None }
-        ]
-    """
+def detect_fastq_pairs(fastq_dir: Path):
     fq_files = sorted(fastq_dir.glob("*.fastq.gz")) + sorted(fastq_dir.glob("*.fq.gz"))
     samples = {}
 
@@ -67,28 +54,28 @@ def detect_fastq_pairs(fastq_dir: Path):
             samples[key]["R2"] = fq
 
         else:
-            # Single-end
             key = name.replace(".fastq.gz", "").replace(".fq.gz", "")
             samples[key] = {"sample": key, "R1": fq, "R2": None}
 
     return list(samples.values())
 
 
-def trim_fastq(user_dir: Path, paired_end: bool = False, threads: int = 4, phred_cutoff: int = 20):
+# --------------- Main Logic --------------- #
+
+def trim_fastq(
+    fastq_dir: Path,
+    output_dir: Path,
+    paired_end: bool = False,
+    threads: int = 4,
+    phred_cutoff: int = 20
+):
     """
     Trim FASTQs using fastp.
-
-    Args:
-        fastq_dir: directory with raw FASTQs
-        output_dir: directory for trimmed FASTQs
-        paired_end: force paired-end? If False, auto-detect per-file
-        threads: number of threads for fastp
-        phred_cutoff: The minimum PHRED score for a 4bp window, if the average score drops below the cutoff fastp will trim
+    fastq_dir: where raw FASTQ files live
+    output_dir: where trimmed FASTQs will be written
     """
-
-    fastq_dir = user_dir / "fastqfiles"
-    output_dir = user_dir / "fastq_trimmed"
-
+    fastq_dir = Path(fastq_dir)
+    output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True, parents=True)
 
     sample_entries = detect_fastq_pairs(fastq_dir)
@@ -98,7 +85,6 @@ def trim_fastq(user_dir: Path, paired_end: bool = False, threads: int = 4, phred
         R1 = entry["R1"]
         R2 = entry["R2"]
 
-        # Override detection if paired_end=True
         is_pe = paired_end or (R1 is not None and R2 is not None)
 
         out_R1 = output_dir / f"{sample}_trimmed_R1.fastq.gz"
@@ -107,22 +93,16 @@ def trim_fastq(user_dir: Path, paired_end: bool = False, threads: int = 4, phred
         json_report = output_dir / f"{sample}.fastp.json"
         html_report = output_dir / f"{sample}.fastp.html"
 
-        # Skip if trimmed file already exists (R1 is enough to decide)
         if out_R1.exists():
             print(f"[Skipping] {sample} already trimmed → {out_R1}")
             continue
 
         print(f"Trimming sample: {sample} (paired-end={is_pe})")
 
-        # Build fastp command
         cmd = [
             "fastp",
             "--thread", str(threads),
-            "--trim_front1", "0",
-            "--trim_tail1", "0",
-            # Enable 3' end quality trimming
             "--cut_tail",
-            # Quality-cut parameters
             "--cut_window_size", "4",
             "--cut_mean_quality", str(phred_cutoff),
             "--length_required", "15",
@@ -138,8 +118,6 @@ def trim_fastq(user_dir: Path, paired_end: bool = False, threads: int = 4, phred
                 "--out2", str(out_R2)
             ]
 
-        # fastp auto-detects adapters by default → no adapter args required
-
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
@@ -149,25 +127,29 @@ def trim_fastq(user_dir: Path, paired_end: bool = False, threads: int = 4, phred
     print("Trimming complete.")
 
 
-# -------------------- CLI SUPPORT -------------------- #
+# --------------- CLI --------------- #
 
 def main():
     parser = argparse.ArgumentParser(description="Trim FASTQ files using fastp.")
-    parser.add_argument("--user_dir", type=Path, default=Path.cwd(), help="Working directory (default: current working directory)")
-    parser.add_argument("--paired_end", action="store_true", help="Force paired-end mode")
-    parser.add_argument("--threads", type=int, default=4, help="Number of threads for fastp")
-    parser.add_argument("--phred_cutoff", type=int, default=20, help="Minimum PHRED score cutoff")
+    parser.add_argument("--fastq_dir", required=True,
+                        help="Directory containing raw FASTQ files")
+    parser.add_argument("--output_dir", required=True,
+                        help="Directory where trimmed FASTQs will be written")
+    parser.add_argument("--paired_end", action="store_true")
+    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--phred_cutoff", type=int, default=20)
 
     args = parser.parse_args()
 
     trim_fastq(
-        user_dir=Path(args.user_dir),
+        fastq_dir=Path(args.fastq_dir),
+        output_dir=Path(args.output_dir),
         paired_end=args.paired_end,
         threads=args.threads,
+        phred_cutoff=args.phred_cutoff
     )
 
 
 if __name__ == "__main__":
-    log_file = "trimming.log"
-    with tee_stdout(log_file):
+    with tee_stdout("trimming.log"):
         main()
