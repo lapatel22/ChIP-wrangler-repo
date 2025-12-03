@@ -6,7 +6,12 @@ import argparse
 import pandas as pd
 from pathlib import Path
 
-def normalize_tagdirs(metadata_file: Path, genome_dirs: dict, target_species: str, spike_species: list):
+def normalize_tagdirs(metadata_file: Path, genome_dirs: dict):
+    # genome_dirs keys = target + spike species
+    # assume the first key is target species, rest are spike species
+    species_list = list(genome_dirs.keys())
+    target_species = species_list[0]
+    spike_species = species_list[1:]
     """
     Normalize HOMER tag directories of the target species based on spike-in factors.
 

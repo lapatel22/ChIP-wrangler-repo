@@ -167,10 +167,8 @@ def wrangle_all(
 
     print("STEP 7: Normalize tag directories")
     norm.normalize_tagdirs(
-        metadata_file=output_dir / "sample_metadata.norm.tsv",
-        genome_dirs=genome_dirs,
-        target_species="hg38",
-        spike_species=["dm6", "sac3"]
+        metadata_file=output_dir/"sample_metadata.norm.tsv",
+        genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}
     )
 
     # -------------------------------------------
@@ -179,7 +177,7 @@ def wrangle_all(
     print("STEP 8: Generate QC data")
     qc.generate_qc(
         metadata_file=output_dir/"sample_metadata.norm.tsv",
-        output_dir=output_dir/"qc_outputs",
+        output_dir=output_dir,
         target_species="hg38",
         spike1_species="dm6",
         spike2_species="sac3"

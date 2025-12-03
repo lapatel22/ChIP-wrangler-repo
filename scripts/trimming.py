@@ -75,7 +75,7 @@ def trim_fastq(
     output_dir: where trimmed FASTQs will be written
     """
     fastq_dir = Path(fastq_dir)
-    output_dir = Path(output_dir)
+    output_dir = Path(output_dir) / "fastq_trimmed"
     output_dir.mkdir(exist_ok=True, parents=True)
 
     sample_entries = detect_fastq_pairs(fastq_dir)

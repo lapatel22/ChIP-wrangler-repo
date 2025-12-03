@@ -123,7 +123,7 @@ There are a few requirements before running ChIP-wrangler:
  - library.ID: sample name (without added R1/R2, file suffixes, etc) that you want to use for downstream analysis
  - file_name: the full path to your fastq files and full file name
  - biological replicate: 
- - IP: antibody target, or `input`
+ - IP: antibody target, or `input` to specify the non-Immunoprecipitated whole-genome background. Input samples are required for proper spike-in normalization, and are thus a **requirement** for ChIP-wrangler.
  - control: fill in TRUE/FALSE if a sample is a control
  - condition: the description of treatment conditions. ChIP-wrangler uses this to match IPs
 
@@ -196,11 +196,10 @@ Finally, if you already trimmed/aligned your fastq files, you can also skip thos
 
 Other optional arguments include: 
 
- - threads: its highly recommended that the user sets how many threads are available for use, as multiple steps (e.g. trimming, alignment) are otherwise time consuming
+ - threads: it's highly recommended that the user sets how many threads are available for use, as multiple steps (e.g. trimming, alignment) are otherwise time consuming
  - umis: if the reads have UMIs, chosing this option means ChIP-wrangler will use umi_tools to deduplicate UMIs instead of autodetecting PCR duplicates with the standard method (which often overestimates duplicates)
  - paired: if reads are paired end, specifying --paired TRUE will allow ChIP-wrangler to align with paired end settings, otherwise, alignment will be single end.
- - force_overwrite: forces all intermediate files to be overwritten (effectively forcing ChIP-wrangler to perform every step even if some steps were previously completed). The default behavior of ChIP-wrangler is to autodetect the output files of each step, and skip if present, for all steps except for normalization factors.
-
+ - force_overwrite: forces all intermediate files to be overwritten, so  ChIP-wrangler performs every step even if some were previously completed. The default behavior of ChIP-wrangler is to autodetect the output files of each step, and skip if present, for all steps except for calculation of normalization factors. 
 
         python scripts/wrangle_all.py 
             --fastq_dir fastqfiles/ 

@@ -162,19 +162,18 @@ def extract_gc_stats(tagdir_root, suffix_pattern):
 # ============================================================
 def generate_qc(metadata_file: Path, output_dir: Path,
                 target_species: str, spike1_species: str, spike2_species: str):
-    user_dir = metadata_file.parent
 
     species_info = {
         target_species: {
-            "tagdir_root": user_dir / f"{target_species}_data" / f"{target_species}_tagdirs",
+            "tagdir_root": output_dir / f"{target_species}_data" / f"{target_species}_tagdirs",
             "suffix_pattern": f".{target_species}-tagdir"
         },
         spike1_species: {
-            "tagdir_root": user_dir / f"{spike1_species}_data" / f"{spike1_species}_tagdirs",
+            "tagdir_root": output_dir / f"{spike1_species}_data" / f"{spike1_species}_tagdirs",
             "suffix_pattern": f".{spike1_species}-tagdir"
         },
         spike2_species: {
-            "tagdir_root": user_dir / f"{spike2_species}_data" / f"{spike2_species}_tagdirs",
+            "tagdir_root": output_dir / f"{spike2_species}_data" / f"{spike2_species}_tagdirs",
             "suffix_pattern": f".{spike2_species}-tagdir"
         }
     }
@@ -216,23 +215,27 @@ def parse_args():
     parser.add_argument("--target_species", required=True)
     parser.add_argument("--spike1_species", required=True)
     parser.add_argument("--spike2_species", required=True)
-    parser.add_argument("--user_dir", type=Path, default=".")
+    parser.add_argument("--output_dir", type=Path, default=".")
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    user_dir = args.user_dir.resolve()
-    metadata_file = user_dir / "sample_metadata.norm.tsv"
-    output_dir = user_dir / "basedist_and_gc_outputs"
-    log_file = output_dir / "GC_bias_QC_report.log"
+    base_output_dir = args.output_dir.resolve()
+    metadata_file = base_output_dir / "sample_metadata.norm.tsv"
+    output_dir = base_output_dir / "basedist_and_gc_outputs"
     output_dir.mkdir(exist_ok=True, parents=True)
 
+    log_file = output_dir / "GC_bias_QC_report.log"
+
     with tee_stdout(log_file):
-        generate_qc(metadata_file=metadata_file,
-                    output_dir=output_dir,
-                    target_species=args.target_species,
-                    spike1_species=args.spike1_species,
-                    spike2_species=args.spike2_species)
+        generate_qc(
+            metadata_file=metadata_file,
+            output_dir=output_dir,
+            target_species=args.target_species,
+            spike1_species=args.spike1_species,
+            spike2_species=args.spike2_species
+        )
+
 
 if __name__ == "__main__":
     main()
