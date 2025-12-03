@@ -175,17 +175,6 @@ Running from scratch:
         --output_dir
         --threads 16
 
-
-Other optional arguments include: 
-
-    python scripts/wrangle_all.py 
-        --fastq_dir fastqfiles/ 
-        --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
-        --output_dir
-        --threads 16
-        --umis TRUE
-        --paired TRUE
-
 If you already have the custom indexed genome (with target and spike-in species), you can specify the path to the directory to skip this step: 
 
     python scripts/wrangle_all.py 
@@ -204,6 +193,23 @@ Finally, if you already trimmed/aligned your fastq files, you can also skip thos
         --threads 16
         --skip_trimming --skip_alignment 
         --indexed_genome_dir genomes/hg38_dm6_sacCer3/
+
+Other optional arguments include: 
+
+ - threads: its highly recommended that the user sets how many threads are available for use, as multiple steps (e.g. trimming, alignment) are otherwise time consuming
+ - umis: if the reads have UMIs, chosing this option means ChIP-wrangler will use umi_tools to deduplicate UMIs instead of autodetecting PCR duplicates with the standard method (which often overestimates duplicates)
+ - paired: if reads are paired end, specifying --paired TRUE will allow ChIP-wrangler to align with paired end settings, otherwise, alignment will be single end.
+ - force_overwrite: forces all intermediate files to be overwritten (effectively forcing ChIP-wrangler to perform every step even if some steps were previously completed). The default behavior of ChIP-wrangler is to autodetect the output files of each step, and skip if present, for all steps except for normalization factors.
+
+
+        python scripts/wrangle_all.py 
+            --fastq_dir fastqfiles/ 
+            --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
+            --output_dir
+            --threads 16
+            --umis TRUE
+            --paired TRUE
+            --force_overwrite
 
 ## Running each function separately
 
