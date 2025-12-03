@@ -267,6 +267,17 @@ The raw data files are named as follows:
 
 ![image.png](readme_assets/2a5628b7-5ed9-4f6f-a6c1-edc06bc18ebf.png)
 
+The fastq files are in GSE273915, the individual samples are: 
+
+GSM8439503	HelaS3, 100percent mitotic, 0percent interphase, input
+GSM8439504	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep1
+GSM8439505	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep2
+GSM8439506	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep3
+GSM8439523	HelaS3, 0percent mitotic, 100percent interphase, input
+GSM8439524	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep1
+GSM8439525	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep2
+GSM8439526	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep3
+
 So why do we need spike-in normalization?
 
 Below is a metagene plot of read-normalized H3K9ac data at *H. sapiens* RefSeq TSSs: 
