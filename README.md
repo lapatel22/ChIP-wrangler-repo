@@ -175,21 +175,29 @@ For the tutorial, we run `wrangle_all` with the following parameters:
 - target_genome = hg38
 - spike1_genome = dm6
 - spike2_genome = sacCer3
-- control_pattern = the control condition that will act as a reference, where 
-- single_end
-- have_umis = False
-- samples = sample_names.tsv
-- epitope_type = histone
+- paired_end = default False, if paired, specify with `--paried_end TRUE`
+- umis = default False, if umis present, specify with `--umis TRUE`
+- metadata = sample_names.tsv
 
-Example: 
+Running from scratch
 
-    python run_wrangle_all.py \
-    --genomes hg38 dm6 sacCer3 \
-    -- control_pattern HeLaS3_100sync_0inter \
-    --single_end \
-    --threads 8 \
-    --umis FALSE
-    --epitope_type histone
+If you already have the custom indexed genome (with target and spike-in species), you can specify the path to skip this step: 
+
+    python scripts/wrangle_all.py 
+        --fastq_dir fastqfiles/ 
+        --genomes hg38 dm6 sac3 
+        --output_dir . 
+        --indexed_genome_dir ../testing/genomes/hg38_dm6_sacCer3/
+
+Finally, if you already trimmed/aligned your fastq files, you can also skip those steps for speed:
+
+    python scripts/wrangle_all.py 
+        --fastq_dir fastqfiles/ 
+        --genomes hg38 dm6 sac3 
+        --output_dir . 
+        --skip_trimming --skip_alignment 
+        --indexed_genome_dir ../testing/genomes/hg38_dm6_sacCer3/
+
 
 ## Running each function separately
 
@@ -226,15 +234,15 @@ Below is an example of real arguments:
 
 `03_remove_duplicates.py --paired --umis FALSE --threads 4`
 
-`04_generate_species_bams.py --spike1 SPIKE1 --spike2 SPIKE2 --target TARGET --threads 4 --mapq 50`
+`04_generate_species_bams.py --target hg38 --spike1 dm6 --spike2 sac3 --threads 4 --mapq 50`
 
 `05_get_sequencing_stats.py --target hg38 --spike1 dm6 --spike2 sac3 --control_conditions None`
 
-`06_estimate_spikein_snr.py --target hg38 --spike1 dm6 --spike2_species sac3`
+`06_estimate_spikein_snr.py --target hg38 --spike1 dm6 --spike2 sac3`
 
 `07_normalize_tagdirs.py --target hg38 --spike1 dm6 --spike2 sac3`
 
-`08_QC_data.py --target_species hg38 --spike1_species dm6 --spike2_species sac3`
+`08_QC_data.py --target hg38 --spike1 dm6 --spike2 sac3`
 
 `Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions treatment,control --outprefix deseq_treatment_vs_control`
 

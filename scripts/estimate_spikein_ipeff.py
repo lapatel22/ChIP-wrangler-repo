@@ -19,17 +19,9 @@ def estimate_spikein(
     hist_bin: int = 25,
     start_position: int = -100,
     end_position: int = 700,
-    genome_dirs: list = None
+    genome_dirs: list = None,
+    save_file: Path = None  # <--- new argument
 ):
-    """
-    High-level wrapper to estimate spike-in IP efficiency:
-    1. Make tagdirs
-    2. Generate histograms
-    3. Compute per-sample AUC
-    4. Normalize by control and input
-    Returns the normalized seqstats DataFrame.
-    """
-
     if user_dir is None:
         user_dir = Path.cwd()
     else:
@@ -38,13 +30,8 @@ def estimate_spikein(
     if metadata_file is None:
         metadata_file = user_dir / "sample_metadata.tsv"
 
-    # Build genome_dirs if not provided (for backward compatibility)
-    if genome_dirs is None:
-        genome_dirs = [
-            user_dir / f"{target_species}_aligned",
-            user_dir / f"{spike1_species}_aligned",
-            user_dir / f"{spike2_species}_aligned"
-        ]
+    if save_file is None:
+        save_file = user_dir / "sample_metadata.norm.tsv"
 
     # --- Step 1: tagdirs & histograms ---
     make_tagdirs(
@@ -73,11 +60,29 @@ def estimate_spikein(
     sac3_signal = compute_auc(process_histograms(hist_sac3, spike2_species),
                               start_position=start_position,
                               end_position=end_position)
+    dm6_signal["library.ID"] = dm6_signal["library.ID"].apply(lambda x: Path(x).name)
+    sac3_signal["library.ID"] = sac3_signal["library.ID"].apply(lambda x: Path(x).name)
+
+    print("dm6_signal library.IDs:", dm6_signal['library.ID'].tolist())
+    print("sac3_signal library.IDs:", sac3_signal['library.ID'].tolist())
 
     # --- Step 4: Merge with metadata & normalize ---
     seqstats_norm = normalize_and_merge(seqstats, dm6_signal, sac3_signal)
 
+    # --- Step 5: Always save ---
+    try:
+        print("\n=== Inspect seqstats_norm before saving ===")
+        print("Columns:", seqstats_norm.columns.tolist())
+        print("Number of rows:", seqstats_norm.shape[0])
+        print("First 10 rows:\n", seqstats_norm.head(10))
+        seqstats_norm.to_csv(save_file, sep="\t", index=False)
+        print(f"Done! Saved normalized sample metadata to {save_file}")
+    except Exception as e:
+        print("ERROR saving seqstats_norm:", e)
+        raise
+
     return seqstats_norm
+
     
 # ======================== Core Functions ========================
 
@@ -176,6 +181,7 @@ def compute_auc(df: pd.DataFrame, start_position=-100, end_position=700):
             auc = np.nan
         auc_list.append({"library.ID": sample, "AUC_peaks": auc})
     return pd.DataFrame(auc_list)
+
 
 def normalize_and_merge(seqstats, 
                         dm6_signal, 
@@ -283,8 +289,6 @@ def normalize_and_merge(seqstats,
 
 
 # ======================== Main Workflow ========================
-# ======================== Main Workflow ========================
-
 def main():
     parser = argparse.ArgumentParser(
         description="Estimate spike-in IP efficiency using HOMER tag directories and histograms."
@@ -301,32 +305,38 @@ def main():
     parser.add_argument("--end_position", type=int, default=700)
     args = parser.parse_args()
 
-    # Path to metadata file
+    print("=== SCRIPT START ===", flush=True)
+
+    # Path to input metadata
     metadata_file = args.user_dir / "sample_metadata.tsv"
     if not metadata_file.exists():
         raise FileNotFoundError(f"{metadata_file} not found.")
 
-    # -----------------------
-    # Run estimate_spikein wrapper
-    # -----------------------
-    print("STEP 6: Estimate spike-in IP efficiency and normalize...")
-    seqstats_norm = estimate_spikein(
-        user_dir=args.user_dir,
-        metadata_file=metadata_file,
-        spike1_species=args.spike1_species,
-        spike2_species=args.spike2_species,
-        target_species=args.target_species,
-        SNR_region=args.SNR_region,
-        frag_length=args.frag_length,
-        hist_size=args.hist_size,
-        hist_bin=args.hist_bin,
-        start_position=args.start_position,
-        end_position=args.end_position
-    )
+    # Path to output normalized metadata (optional override)
+    save_file = args.user_dir / "sample_metadata.norm.tsv"
 
-    # -----------------------
-    # Save results
-    # -----------------------
-    output_file = args.user_dir / "sample_metadata.norm.tsv"
-    seqstats_norm.to_csv(output_file, sep="\t", index=False)
-    print(f"Done! Saved normalized sample metadata to {output_file}")
+    # Run the wrapper (always saves internally)
+    print("STEP 6: Estimate spike-in IP efficiency and normalize...", flush=True)
+    try:
+        estimate_spikein(
+            user_dir=args.user_dir,
+            metadata_file=metadata_file,
+            spike1_species=args.spike1_species,
+            spike2_species=args.spike2_species,
+            target_species=args.target_species,
+            SNR_region=args.SNR_region,
+            frag_length=args.frag_length,
+            hist_size=args.hist_size,
+            hist_bin=args.hist_bin,
+            start_position=args.start_position,
+            end_position=args.end_position,
+            save_file=save_file
+        )
+    except Exception as e:
+        print("ERROR in estimate_spikein:", e, flush=True)
+        raise
+
+    print("=== SCRIPT END ===", flush=True)
+
+if __name__ == "__main__":
+    main()

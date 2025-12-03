@@ -144,24 +144,30 @@ def wrangle_all(
     # STEP 6: Estimate spike-in SNR
     # -------------------------------------------
     print("STEP 6: Estimate spike-in IP efficiency")
+
+    # Define where to save normalized metadata
+    save_file = output_dir / "sample_metadata.norm.tsv"
+
     ipeff.estimate_spikein(
-        metadata_file=output_dir / "sample_metadata.tsv",
-        user_dir=output_dir,                 # <- points to the main working directory
-        spike1_species="dm6",                # <- adjust if needed
-        spike2_species="sac3",               # <- adjust if needed
-        target_species="hg38",               # <- adjust if needed
-        SNR_region="tss",                     # optional, defaults to "tss"
-        frag_length=150,                      # optional
-        hist_size=4000,                       # optional
-        hist_bin=25                          # optional
+        metadata_file=output_dir / "sample_metadata.tsv",  # input metadata
+        user_dir=output_dir,                                # working directory
+        spike1_species="dm6",                               # adjust if needed
+        spike2_species="sac3",                              # adjust if needed
+        target_species="hg38",                              # adjust if needed
+        SNR_region="tss",                                   # optional
+        frag_length=150,                                    # optional
+        hist_size=4000,                                     # optional
+        hist_bin=25,                                        # optional
+        save_file=save_file                                 # always save
     )
 
     # -------------------------------------------
     # STEP 7: Normalize tag directories
     # -------------------------------------------
+
     print("STEP 7: Normalize tag directories")
     norm.normalize_tagdirs(
-        metadata_file=output_dir/"sample_metadata.tsv",
+        metadata_file=output_dir/"sample_metadata.norm.tsv",
         genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}
     )
 
@@ -170,7 +176,7 @@ def wrangle_all(
     # -------------------------------------------
     print("STEP 8: Generate QC data")
     qc.generate_qc(
-        metadata_file=output_dir/"sample_metadata.tsv",
+        metadata_file=output_dir/"sample_metadata.norm.tsv",
         output_dir=output_dir/"qc_outputs"
     )
 
