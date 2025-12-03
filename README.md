@@ -159,9 +159,9 @@ ChIP-wrangler will build a folder structure from this directory, once all steps 
 
 For the tutorial, we run `wrangle_all` with the following parameters: 
 
-- target_genome = hg38
-- spike1_genome = dm6
-- spike2_genome = sacCer3
+- target_genome = hg38_genome.fa hg38
+- spike1_genome = dm6_genome.fa dm6
+- spike2_genome = sac3_genome.fa sac3
 - paired_end = default False, if paired, specify with `--paried_end TRUE`
 - umis = default False, if umis present, specify with `--umis TRUE`
 - metadata = sample_names.tsv
@@ -172,7 +172,7 @@ If you already have the custom indexed genome (with target and spike-in species)
 
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
-        --genomes hg38 dm6 sac3 
+        --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
         --output_dir . 
         --indexed_genome_dir ../testing/genomes/hg38_dm6_sacCer3/
 
