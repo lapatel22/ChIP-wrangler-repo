@@ -166,9 +166,25 @@ For the tutorial, we run `wrangle_all` with the following parameters:
 - umis = default False, if umis present, specify with `--umis TRUE`
 - metadata = sample_names.tsv
 
-Running from scratch
+Running from scratch:
 
-If you already have the custom indexed genome (with target and spike-in species), you can specify the path to skip this step: 
+    python scripts/wrangle_all.py 
+        --fastq_dir fastqfiles/ 
+        --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
+        --output_dir
+
+
+Other optional arguments include: 
+
+    python scripts/wrangle_all.py 
+        --fastq_dir fastqfiles/ 
+        --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
+        --output_dir
+        --threads 16
+        --umis TRUE
+        --paired TRUE
+
+If you already have the custom indexed genome (with target and spike-in species), you can specify the path to the directory to skip this step: 
 
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
