@@ -70,9 +70,10 @@ def wrangle_all(
     # -------------------------------------------
     if not skip_trimming:
         print("STEP 1: Trimming")
+        # STEP 1: Trimming
         trim.trim_fastq(
-            fastq_dir=fastq_dir,
-            output_dir=output_dir/"fastq_trimmed",
+            fastq_dir=fastq_dir,          # raw fastq
+            output_dir=output_dir,        # base project dir
             paired_end=paired_end
         )
     else:
@@ -85,8 +86,8 @@ def wrangle_all(
         print("STEP 2: Alignment")
         align.align_fastq(
             fastq_dir=output_dir/"fastq_trimmed",
-            genome_dir=genome_dir,     # <–– dynamically chosen
-            output_dir=output_dir/"concat_align",
+            genome_dir=genome_dir,
+            output_dir=output_dir,   # BASE PROJECT DIR
             paired_end=paired_end,
             threads=threads
         )
@@ -97,33 +98,62 @@ def wrangle_all(
     # STEP 3: Remove PCR duplicates
     # -------------------------------------------
     print("STEP 3: Remove PCR duplicates")
-    pcr.remove_duplicates(
-        input_dir=output_dir/"concat_align",
-        output_dir=output_dir/"concat_align/dedup_out"
-    )
 
+    pcr.remove_duplicates(
+        output_dir=output_dir,    # BASE PROJECT DIR
+        paired=False,        # or however you detect paired-end
+        umis=False,            # True/False
+        threads=threads
+    )
+    
     # -------------------------------------------
     # STEP 4: Generate species-specific BAMs
     # -------------------------------------------
+    
     print("STEP 4: Generate species-specific BAMs")
-    species_bams.split_species_bams(
-        dedup_dir=output_dir/"concat_align/dedup_out",
-        output_dirs={genome: output_dir/f"{genome}_data"/f"{genome}_aligned" for genome in genome_names}
+    from generate_species_bams import generate_species_bams
+
+    # Assign target and spike species
+    target_species = genome_names[0]           # e.g., "hg38"
+    spike1_species = genome_names[1] if len(genome_names) > 1 else "none"
+    spike2_species = genome_names[2] if len(genome_names) > 2 else "none"
+
+    species_bams.generate_species_bams(
+        spike1_species=spike1_species,
+        spike2_species=spike2_species,
+        target_species=target_species,
+        user_dir=output_dir,       # this is the base project dir
+        mapq_threshold=50,         # optional: change if needed
+        threads=threads
     )
 
     # -------------------------------------------
     # STEP 5: Update sequencing stats
     # -------------------------------------------
     print("STEP 5: Update sequencing stats")
-    stats.update_sample_metadata(metadata_file=output_dir/"sample_metadata.tsv")
+    
+    stats.update_sample_metadata(
+        user_dir=output_dir,
+        target_species=genome_names[0],  # hg38
+        spike1_species=genome_names[1] if len(genome_names) > 1 else None,  # dm6
+        spike2_species=genome_names[2] if len(genome_names) > 2 else None,  # sac3
+        samtools_path="samtools"
+    )
 
     # -------------------------------------------
     # STEP 6: Estimate spike-in SNR
     # -------------------------------------------
-    print("STEP 6: Estimate spike-in SNR")
-    snr.estimate_spikein(
-        metadata_file=output_dir/"sample_metadata.tsv",
-        genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}
+    print("STEP 6: Estimate spike-in IP efficiency")
+    ipeff.estimate_spikein(
+        metadata_file=output_dir / "sample_metadata.tsv",
+        user_dir=output_dir,                 # <- points to the main working directory
+        spike1_species="dm6",                # <- adjust if needed
+        spike2_species="sac3",               # <- adjust if needed
+        target_species="hg38",               # <- adjust if needed
+        SNR_region="tss",                     # optional, defaults to "tss"
+        frag_length=150,                      # optional
+        hist_size=4000,                       # optional
+        hist_bin=25                          # optional
     )
 
     # -------------------------------------------

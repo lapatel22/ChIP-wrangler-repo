@@ -112,20 +112,39 @@ def dedup_with_umis(intermed_dir, dedup_dir, threads=4):
         ], log_file)
 
 
+def remove_duplicates(output_dir, paired=False, umis=False, threads=4):
+
+    output_dir = Path(output_dir)
+
+    bam_dir = output_dir / "concat_align"
+    intermed_dir = output_dir / "bams_pcrdup_intermed"
+    dedup_dir = bam_dir / "dedup_out"
+
+    intermed_dir.mkdir(parents=True, exist_ok=True)
+    dedup_dir.mkdir(parents=True, exist_ok=True)
+
+    if umis:
+        dedup_with_umis(intermed_dir, dedup_dir, threads)
+    else:
+        if paired:
+            dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads)
+        else:
+            dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads)
+
+
 # -------------------- CLI -------------------- #
 
 def main():
     parser = argparse.ArgumentParser(description="Deduplicate aligned reads")
-    parser.add_argument("--user_dir", type=Path, default=Path.cwd(),
-                        help="Working directory (default: current working directory)")
+    parser.add_argument("--output_dir", required=True, type=Path)
     parser.add_argument("--paired", action="store_true", help="Indicate paired-end reads")
     parser.add_argument("--umis", required=True, choices=["TRUE","FALSE"], help="Whether UMIs are present in reads")
     parser.add_argument("--threads", type=int, default=4)
     args = parser.parse_args()
 
-    bam_dir = args.user_dir / "concat_align"
-    intermed_dir = args.user_dir / "bams_pcrdup_intermed"
-    dedup_dir = args.user_dir / "concat_align" / "dedup_out"
+    bam_dir = args.output_dir / "concat_align"
+    intermed_dir = args.output_dir / "bams_pcrdup_intermed"
+    dedup_dir = args.output_dir / "concat_align" / "dedup_out"
 
     dedup_dir.mkdir(exist_ok=True, parents=True)
     intermed_dir.mkdir(exist_ok=True, parents=True)
