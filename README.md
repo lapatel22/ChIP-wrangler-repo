@@ -124,7 +124,7 @@ There are a few requirements before running ChIP-wrangler:
  - file_name: the full path to your fastq files and full file name
  - biological replicate: 
  - IP: antibody target, or `input`
- - control condition: fill in yes/no if a sample is a control
+ - control: fill in TRUE/FALSE if a sample is a control
 
 User must specify these columns so that ChIP-wrangler knows what samples to use as a reference when normalizing, which samples are inputs, etc.
 
@@ -138,30 +138,17 @@ User must specify these columns so that ChIP-wrangler knows what samples to use 
         HelaS3_100sync_0inter_1_H3K9ac_2
         HelaS3_100sync_0inter_1_H3K9ac_3
         HelaS3_100sync_0inter_1_input_1
-
-## Choice of controls and sample naming
-
-Samples should be named according to the following convention:
-
-CellType_Treatment_Timepoint_BiologicalReplicate_Antibody_TechnicalReplicate
-
-The Treatment/Timepoint columns can be used as needed, but they each are a place to put sample conditions, or categorical variables explaining the experiment. 
-
-In the given example experiment, where mitotic and interphase HeLaS3 cells are combined in different ratios to create a titration of H3K9ac levels, the samples containing 100% mitotic cells are named `HelaS3_100sync_0inter_1_H3K9ac_1` while the samples containing 50% mitotic and 50% interphase cells are named `HelaS3_50sync_50inter_1_H3K9ac_1`
-
-- Antibody (usually I have multiple IP samples from each biological sample/replicate)
-- Technical Replicate (separate library preps from the same biological sample/replicate)
-
+    
 Other naming convention rules: 
 
  - No special characters besides "_" "-" or "."
 
 
-4. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is an argument: "user_dir".
+4. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is an argument: "output_dir".
 
 When you begin, your working directory should look like: 
 
-    $ ls user_dir
+    $ ls output_dir
     fastqfiles/ sample_names.tsv genomes/
 
 ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
