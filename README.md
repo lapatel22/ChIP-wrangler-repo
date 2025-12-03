@@ -125,6 +125,7 @@ There are a few requirements before running ChIP-wrangler:
  - biological replicate: 
  - IP: antibody target, or `input`
  - control: fill in TRUE/FALSE if a sample is a control
+ - condition: the description of treatment conditions. ChIP-wrangler uses this to match IPs
 
 User must specify these columns so that ChIP-wrangler knows what samples to use as a reference when normalizing, which samples are inputs, etc.
 
@@ -172,6 +173,7 @@ Running from scratch:
         --fastq_dir fastqfiles/ 
         --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
         --output_dir
+        --threads 16
 
 
 Other optional arguments include: 
@@ -191,6 +193,7 @@ If you already have the custom indexed genome (with target and spike-in species)
         --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
         --output_dir . 
         --indexed_genome_dir genomes/hg38_dm6_sacCer3/
+        --threads 16
 
 Finally, if you already trimmed/aligned your fastq files, you can also skip those steps for speed:
 
@@ -198,9 +201,9 @@ Finally, if you already trimmed/aligned your fastq files, you can also skip thos
         --fastq_dir fastqfiles/ 
         --genomes hg38 dm6 sac3 
         --output_dir . 
+        --threads 16
         --skip_trimming --skip_alignment 
         --indexed_genome_dir genomes/hg38_dm6_sacCer3/
-
 
 ## Running each function separately
 
@@ -231,13 +234,13 @@ Below is an example of real arguments:
 
 `00_preprocessing.py --target_genome hg38_genome.fa hg38 --spike1_genome dm6_genome.fa dm6 --spike2_genome sacCer3_genome.fa sac3`
 
-`01_trimming.py --paired_end FALSE --threads 4`
+`01_trimming.py --paired_end FALSE --threads 16`
 
 `02_alignment.py --target hg38 --spike1 dm6 --spike2 sacCer3 --threads 4 --paired FALSE`
 
-`03_remove_duplicates.py --paired --umis FALSE --threads 4`
+`03_remove_duplicates.py --paired --umis FALSE --threads 16`
 
-`04_generate_species_bams.py --target hg38 --spike1 dm6 --spike2 sac3 --threads 4 --mapq 50`
+`04_generate_species_bams.py --target hg38 --spike1 dm6 --spike2 sac3 --threads 16 --mapq 50`
 
 `05_get_sequencing_stats.py --target hg38 --spike1 dm6 --spike2 sac3 --control_conditions None`
 
