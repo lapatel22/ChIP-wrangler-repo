@@ -78,7 +78,7 @@ The `chip_wranlger_env.yml` file is included for conda installation, to  help ha
 
 To install all required and recommended dependencies from conda:
 
-`conda env create -f environment.yml`
+`conda env create -f chip_wrangler_env.yml`
 `conda activate chip_wrangler_env`
 
 ChIP-wrangler has the following dependencies, shown below: 
@@ -168,7 +168,7 @@ ChIP-wrangler will build a folder structure from this directory, once all steps 
 
 ![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
 
-### Wrangle_all
+### Running Wrangle_all 
 
 For the tutorial, we run `wrangle_all` with the following parameters: 
 
