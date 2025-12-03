@@ -190,7 +190,7 @@ If you already have the custom indexed genome (with target and spike-in species)
         --fastq_dir fastqfiles/ 
         --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
         --output_dir . 
-        --indexed_genome_dir ../testing/genomes/hg38_dm6_sacCer3/
+        --indexed_genome_dir genomes/hg38_dm6_sacCer3/
 
 Finally, if you already trimmed/aligned your fastq files, you can also skip those steps for speed:
 
@@ -199,7 +199,7 @@ Finally, if you already trimmed/aligned your fastq files, you can also skip thos
         --genomes hg38 dm6 sac3 
         --output_dir . 
         --skip_trimming --skip_alignment 
-        --indexed_genome_dir ../testing/genomes/hg38_dm6_sacCer3/
+        --indexed_genome_dir genomes/hg38_dm6_sacCer3/
 
 
 ## Running each function separately
