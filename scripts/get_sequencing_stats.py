@@ -97,76 +97,47 @@ def build_seqstats(user_dir: Path, target: str, spike1: str, spike2: str, specie
     """
     target_dir = species_dirs[target]
 
-    # prefer nosuffx2.sam list for sample discovery
-    sample_files = list(target_dir.glob("*.nosuffx2.sam"))
-    if not sample_files:
-        # fallback to target-specific bam naming pattern
-        sample_files = list(target_dir.glob(f"*.{target}.bam"))
+    sample_files = list(target_dir.glob(f"*.{target}.bam"))
     if not sample_files:
         raise RuntimeError(f"No sample files found for target {target} in {target_dir}")
 
     records = []
     for sf in sample_files:
         stem = sf.stem
-        # remove ".<target>.nosuffx2" or ".<target>" suffix if present
-        sample = re.sub(rf"\.{re.escape(target)}(\.nosuffx2)?$", "", stem)
+        sample = re.sub(rf"\.{re.escape(target)}$", "", stem)
 
-        # parse expected sample pattern
-        m = re.match(r"^([A-Za-z0-9]+_[0-9]+sync_[0-9]+inter)_(\d+)_(\w+)_([0-9]+)$", sample)
-        if not m:
-            # warn and skip
-            print(f"Warning: skipping unrecognized sample name: {sample}")
-            continue
-        condition_base, biorep, ip, techrep = m.groups()
-
-        # locate corresponding files for each species
-        def find_best_path(species):
-            if species is None:
+        def find_file(species):
+            if not species:
                 return None
-            adir = species_dirs.get(species)
-            if adir is None:
-                return None
-            candidates = list(adir.glob(f"{sample}.nosuffx2.sam"))
-            if candidates:
-                return candidates[0]
-            candidates = list(adir.glob(f"{sample}.{species}.bam"))
-            if candidates:
-                return candidates[0]
-            candidates = list(adir.glob(f"{sample}*.bam"))
-            if candidates:
-                return candidates[0]
+            adir = species_dirs[species]
+            for pattern in [f"{sample}.{species}.bam", f"{sample}*.bam"]:
+                candidates = list(adir.glob(pattern))
+                if candidates:
+                    return candidates[0]
             return None
 
-        p_target = find_best_path(target)
-        p_s1 = find_best_path(spike1)
-        p_s2 = find_best_path(spike2)
+        f_target = find_file(target)
+        f_s1 = find_file(spike1)
+        f_s2 = find_file(spike2)
 
-        # skip if any required file missing
-        if p_target is None or (spike1 is not None and p_s1 is None) or (spike2 is not None and p_s2 is None):
-            print(f"Missing per-species files for sample {sample} — skipping")
+        if f_target is None or (spike1 and f_s1 is None) or (spike2 and f_s2 is None):
+            print(f"Missing files for {sample} — skipping")
             continue
 
-        # count reads
-        def count(path):
+        def count_reads(f):
             try:
-                out = subprocess.run([samtools_path, "view", "-c", str(path)],
+                out = subprocess.run([samtools_path, "view", "-c", str(f)],
                                      capture_output=True, text=True, check=True)
-                return int(out.stdout.strip() or 0)
+                return int(out.stdout.strip())
             except Exception:
                 return 0
 
-        c_t = count(p_target)
-        c_s1 = count(p_s1) if p_s1 else 0
-        c_s2 = count(p_s2) if p_s2 else 0
+        c_t = count_reads(f_target)
+        c_s1 = count_reads(f_s1) if f_s1 else 0
+        c_s2 = count_reads(f_s2) if f_s2 else 0
 
-        rec = {
-            "library.ID": sample,
-            "Condition": condition_base,
-            "Biorep": int(biorep),
-            "IP": ip,
-            "TechRep": int(techrep),
-            f"{target}_reads": c_t,
-        }
+        rec = {"library.ID": sample,
+               f"{target}_reads": c_t}
         if spike1:
             rec[f"{spike1}_reads"] = c_s1
             rec[f"{spike1}/{target}"] = (c_s1 / c_t) if c_t else np.nan
@@ -176,10 +147,10 @@ def build_seqstats(user_dir: Path, target: str, spike1: str, spike2: str, specie
 
         records.append(rec)
 
-    seqstats = pd.DataFrame(records)
-    if seqstats.empty:
+    df = pd.DataFrame(records)
+    if df.empty:
         raise RuntimeError("No samples parsed into seqstats (check file naming).")
-    return seqstats
+    return df
 
 
 def compute_input_and_ip_input(seqstats: pd.DataFrame, spike1: str, spike2: str, target: str) -> pd.DataFrame:
@@ -235,17 +206,25 @@ def compute_control_averages_and_normalize(df_updated: pd.DataFrame, spike1: str
         # create Control column default False
         df_updated["Control"] = False
 
-    df_updated["Control_flag"] = df_updated["Control"].apply(is_true)
-
-    print("Columns in df_updated:", df_updated.columns.tolist())
+    df_updated["IP"] = df_updated["IP"].astype(str).str.strip()
+    df_updated["Control"] = df_updated["Control"].astype(str).str.strip()
+    
+    control_subset = df_updated[(df_updated["Control"] == True) & (df_updated["IP"] != "input")]
+    
     print("Unique values in IP column:", df_updated["IP"].unique())
+
+    inputs = df_updated[df_updated["IP"] == "input"]
+    print("Input rows:", len(inputs))
+    print(inputs[["library.ID", "IP"]])
+    print(df_updated.filter(regex="reads$").head())
     
     # only IPs (exclude input) for control computation
-    control_subset = df_updated.query("Control_flag == True and `IP` != 'input'")
     if control_subset.empty:
         print("No Control==TRUE rows found; falling back to all non-input IP samples for control averaging.")
-        control_subset = df_updated.query("IP != 'input'")
+        control_subset = df_updated[df_updated["IP"] != "input"]
 
+    print("Control subset is:", control_subset[["library.ID", "Control", "IP"]])
+    
     # identify which IP/input columns exist
     avg_cols = []
     if spike1 and f"{spike1} IP/input" in df_updated.columns:
@@ -296,24 +275,43 @@ def update_sample_metadata(
         print(f"Using specified target: {target}; spike1: {spike1}; spike2: {spike2}")
         
     # build per-sample stats
+    # Step 1: Build seqstats with library.ID, target_reads, spike_reads, spike/target ratios
     seqstats = build_seqstats(user_dir, target, spike1, spike2, species_dirs, samtools_path)
 
-    # compute input and IP/input ratios
-    seqstats = compute_input_and_ip_input(seqstats, spike1, spike2, target)
-
-    # load metadata and merge
+    # Step 2: Load metadata
     metadata_file = user_dir / "sample_names.tsv"
-    if not metadata_file.exists():
-        raise FileNotFoundError(f"sample_names.tsv missing at {metadata_file}")
     df_meta = pd.read_csv(metadata_file, sep="\t")
-    if df_meta.empty:
-        raise RuntimeError("sample_names.tsv is empty")
 
-    df_meta.columns = df_meta.columns.str.strip()  # remove spaces in column names
-    if "IP" in df_meta.columns:
-        df_meta["IP"] = df_meta["IP"].str.strip()   # remove spaces in values
+    # Strip any whitespace in headers
+    df_meta.columns = df_meta.columns.str.strip()
+
+    # Now merge works
+    df_merged = df_meta.merge(seqstats, on="library.ID", how="left")
+
+    # Step 4: Compute input ratios on merged df
+    df_updated = compute_input_and_ip_input(df_merged, spike1, spike2, target)
+
+    # Normalize Control column to real booleans
+    # Normalize Control column → real booleans
+    df_updated["Control"] = (
+        df_updated["Control"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map({"TRUE": True, "FALSE": False})
+    )
     
-    df_updated = df_meta.merge(seqstats, on="library.ID", how="left", suffixes=('_x', '_y'))
+    # Safety: if any unrecognized values exist → raise clear error
+    if df_updated["Control"].isna().any():
+        bad = df_updated[df_updated["Control"].isna()]["Control"]
+        raise ValueError(
+            f"ERROR: Control column contains non-boolean values: {bad.tolist()}\n"
+            "Valid values are: TRUE or FALSE"
+        )
+    
+    # If metadata has IP column, refine QC_flag to apply only to true inputs
+    if "IP" in df_updated.columns:
+        df_updated.loc[df_updated["IP"] != "input", "QC_flag"] = ""
 
     duplicate_columns = [c for c in df_updated.columns if c.endswith("_y")]
 
@@ -353,7 +351,6 @@ def update_sample_metadata(
     outp = user_dir / "sample_metadata.tsv"
     df_updated.to_csv(outp, sep="\t", index=False)
     print(f"Wrote updated metadata to: {outp}")
-    print(df_updated.head().to_string(index=False))
 
 
 # -------------------- CLI --------------------

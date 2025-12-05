@@ -269,14 +269,14 @@ The raw data files are named as follows:
 
 The fastq files are in GSE273915, the individual samples are: 
 
-GSM8439503	HelaS3, 100percent mitotic, 0percent interphase, input
-GSM8439504	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep1
-GSM8439505	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep2
-GSM8439506	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep3
-GSM8439523	HelaS3, 0percent mitotic, 100percent interphase, input
-GSM8439524	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep1
-GSM8439525	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep2
-GSM8439526	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep3
+GSM8439503	HelaS3, 100percent mitotic, 0percent interphase, input  <br>
+GSM8439504	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep1 <br>
+GSM8439505	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep2 <br>
+GSM8439506	HelaS3, 100percent mitotic, 0percent interphase, H3K9ac, rep3 <br>
+GSM8439523	HelaS3, 0percent mitotic, 100percent interphase, input <br>
+GSM8439524	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep1 <br>
+GSM8439525	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep2 <br>
+GSM8439526	HelaS3, 0percent mitotic, 100percent interphase, H3K9ac, rep3 <br>
 
 So why do we need spike-in normalization?
 
