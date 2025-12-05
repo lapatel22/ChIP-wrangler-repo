@@ -41,8 +41,10 @@ def detect_single_end_fastqs(fastq_dir: Path):
 # ============================================================
 
 def align_fastq(
-    genome_dir: Path,
     fastq_dir: Path = None,
+    target_genome: str = None,
+    spike_genomes: list[str] = [],
+    genome_dir: Path = None,
     output_dir: Path = None,
     paired_end: bool = False,
     threads: int = 1,
@@ -63,17 +65,26 @@ def align_fastq(
         Default: <output_dir>/concat_align
     """
 
-    # ------------------------------
-    # Resolve auto-default directories
-    # ------------------------------
-    if output_dir is None:
-        raise ValueError("output_dir must be provided when calling align_fastq()")
-    
     output_dir = Path(output_dir)
-    # Prevent nested concat_align directories
-    if output_dir.name == "concat_align":
-        output_dir = output_dir.parent
 
+    # ------------------------------
+    # Determine genome_dir automatically if not provided
+    # ------------------------------
+    if genome_dir is None:
+        if target_genome is None:
+            raise ValueError("target_genome must be provided if genome_dir is not set")
+        parts = [target_genome] + spike_genomes
+        genome_dir = output_dir / ("_".join(parts) + "_indexed")
+
+    genome_dir = Path(genome_dir)
+    if not genome_dir.exists():
+        raise FileNotFoundError(f"Genome directory does not exist: {genome_dir}")
+
+    print(f"Using genome directory: {genome_dir}")
+
+    # ------------------------------
+    # Resolve fastq_dir and bam_dir
+    # ------------------------------
     if fastq_dir is None:
         fastq_dir = output_dir / "fastq_trimmed"
     else:
@@ -95,7 +106,7 @@ def align_fastq(
     # ------------------------------
     # Find the BWA index prefix
     # ------------------------------
-    genome_dir = Path(genome_dir)
+
     bwa_prefix = None
     for file in genome_dir.glob("*"):
         if file.suffix == ".amb":
@@ -170,7 +181,8 @@ def align_fastq(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Align FASTQs with BWA MEM")
-
+    parser.add_argument("--target_genome", type=str, help="Nickname of target genome, e.g., hg38")
+    parser.add_argument("--spike_genomes", nargs="*", default=[], help="Spike-in genome nicknames")
     parser.add_argument("--genome_dir", required=True, type=Path)
     parser.add_argument("--output_dir", required=True, type=Path,
                         help="Base directory containing fastq_trimmed/ and where concat_align/ will be written")
@@ -185,6 +197,8 @@ if __name__ == "__main__":
 
     align_fastq(
         genome_dir=args.genome_dir,
+        target_genome=args.target_genome,
+        spike_genomes=args.spike_genomes,
         fastq_dir=args.fastq_dir,
         output_dir=args.output_dir,
         paired_end=args.paired,

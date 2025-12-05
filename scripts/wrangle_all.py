@@ -57,17 +57,15 @@ def wrangle_all(
     if indexed_genome_dir:
         print("STEP 0: Skipping custom genome creation (using pre-indexed genome)")
         genome_dir = Path(indexed_genome_dir)
-
     else:
         print("STEP 0: Preprocessing (custom genome creation)")
-
-    pp.create_custom_genome(
-        output_dir=output_dir,
-        target_genome=target_genome,
-        target_fasta=target_fasta,
-        spike_genomes=spike_genomes,
-        spike_fastas=spike_fastas
-    )
+        genome_dir = pp.create_custom_genome(
+            output_dir=output_dir,
+            target_genome=target_genome,
+            target_fasta=target_fasta,
+            spike_genomes=spike_genomes,
+            spike_fastas=spike_fastas
+        )
 
     # -------------------------------------------
     # STEP 1: Trimming
