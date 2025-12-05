@@ -94,7 +94,8 @@ def generate_species_bams(
         base = bam.stem.replace(".filtered", "")
         for bad_bam in output_dir.glob(f"{base}.chr*"):
             if any(x in bad_bam.name for x in ["_alt", "Un", "random", "chrM"]):
-                print(f"Removing {bad_bam.name} (unwanted contig)")
+                # dont print the unwanted contigs! too many!
+        #        print(f"Removing {bad_bam.name} (unwanted contig)")
                 bad_bam.unlink()
 
     # ----------------------- Step 3: Merge by species -----------------------
