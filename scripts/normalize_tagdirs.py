@@ -104,10 +104,14 @@ def normalize_tagdirs(metadata_file: Path, genome_dirs: dict):
             new_tagdir_name = f"{sample_id}.{spike}.normalized-tagdir"
             new_tagdir_path = output_dir / new_tagdir_name
 
-            if new_tagdir_path.exists():
-                print(f" Normalized tagdir exists: {new_tagdir_name}, skipping.")
-                continue
+    # NOTE: previously here i had an if statement, and skipped normalizing a tagdir if it already existed. given normalization is fast, we now remake every time
 
+            # remove old one
+            if new_tagdir_path.exists():
+                print(f" Overwriting existing normalized tagdir: {new_tagdir_name}")
+                shutil.rmtree(new_tagdir_path)
+
+            # copy original tagdir
             shutil.copytree(tagdir, new_tagdir_path)
 
             # Modify tagInfo.txt

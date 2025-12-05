@@ -1,7 +1,7 @@
-Success: Saved hg38 GC stats → basedist_and_gc_outputs/hg38_gc_stats.tsv
-Success: Saved dm6 GC stats → basedist_and_gc_outputs/dm6_gc_stats.tsv
-Success: Saved sac3 GC stats → basedist_and_gc_outputs/sac3_gc_stats.tsv
-Success: Combined GC stats → basedist_and_gc_outputs/all_gc_stats_combined.tsv
+Saved hg38 GC stats → basedist_and_gc_outputs/hg38_gc_stats.tsv
+Saved dm6 GC stats → basedist_and_gc_outputs/dm6_gc_stats.tsv
+Saved sac3 GC stats → basedist_and_gc_outputs/sac3_gc_stats.tsv
+Combined GC stats → basedist_and_gc_outputs/all_gc_stats_combined.tsv
 
 
 ==========================
@@ -15,9 +15,9 @@ Sample: HelaS3_0sync_100inter_1_H3K9ac_3
   GC ratio (dm6): 1.040
   GC ratio (sac3): 1.009
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  0.269
-  sac3 Normalization factor:  0.294
-  dual Normalization factor: 0.281
+  dm6 Normalization factor: 0.427
+  sac3 Normalization factor: 0.462
+  dual Normalization factor: 0.445
   Spike-in normalization factors in similar range
 
 ----------------------------------
@@ -27,9 +27,9 @@ Sample: HelaS3_100sync_0inter_1_H3K9ac_1
   GC ratio (dm6): 1.044
   GC ratio (sac3): 1.007
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  0.928
-  sac3 Normalization factor:  0.923
-  dual Normalization factor: 0.926
+  dm6 Normalization factor: 1.471
+  sac3 Normalization factor: 1.456
+  dual Normalization factor: 1.463
   Spike-in normalization factors in similar range
 
 ----------------------------------
@@ -39,21 +39,21 @@ Sample: HelaS3_100sync_0inter_1_H3K9ac_2
   GC ratio (dm6): 1.049
   GC ratio (sac3): 1.010
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  0.895
-  sac3 Normalization factor:  0.916
-  dual Normalization factor: 0.906
+  dm6 Normalization factor: 1.417
+  sac3 Normalization factor: 1.439
+  dual Normalization factor: 1.428
   Spike-in normalization factors in similar range
 
 ----------------------------------
 Sample: HelaS3_0sync_100inter_1_H3K9ac_1
 ----------------------------------
-  GC ratio (hg38): 1.076
+  GC ratio (hg38): 1.077
   GC ratio (dm6): 1.036
   GC ratio (sac3): 1.009
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  0.190
-  sac3 Normalization factor:  0.212
-  dual Normalization factor: 0.201
+  dm6 Normalization factor: 0.305
+  sac3 Normalization factor: 0.334
+  dual Normalization factor: 0.319
   Spike-in normalization factors in similar range
 
 ----------------------------------
@@ -63,8 +63,8 @@ Sample: HelaS3_0sync_100inter_1_input_1
   GC ratio (dm6): 1.004 ---> GC content acceptable
   GC ratio (sac3): 1.001 ---> GC content acceptable
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  nan
-  sac3 Normalization factor:  nan
+  dm6 Normalization factor: nan
+  sac3 Normalization factor: nan
   dual Normalization factor: nan
 
 ----------------------------------
@@ -74,9 +74,9 @@ Sample: HelaS3_100sync_0inter_1_H3K9ac_3
   GC ratio (dm6): 1.048
   GC ratio (sac3): 1.010
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  1.184
-  sac3 Normalization factor:  1.160
-  dual Normalization factor: 1.172
+  dm6 Normalization factor: 1.872
+  sac3 Normalization factor: 1.826
+  dual Normalization factor: 1.849
   Spike-in normalization factors in similar range
 
 ----------------------------------
@@ -86,9 +86,9 @@ Sample: HelaS3_0sync_100inter_1_H3K9ac_2
   GC ratio (dm6): 1.044
   GC ratio (sac3): 1.009
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  0.287
-  sac3 Normalization factor:  0.280
-  dual Normalization factor: 0.284
+  dm6 Normalization factor: 0.456
+  sac3 Normalization factor: 0.441
+  dual Normalization factor: 0.448
   Spike-in normalization factors in similar range
 
 ----------------------------------
@@ -98,6 +98,6 @@ Sample: HelaS3_100sync_0inter_1_input_1
   GC ratio (dm6): 1.006 ---> GC content acceptable
   GC ratio (sac3): 1.002 ---> GC content acceptable
   Spike-in/target ratio: within acceptable range
-  dm6 Normalization factor:  nan
-  sac3 Normalization factor:  nan
+  dm6 Normalization factor: nan
+  sac3 Normalization factor: nan
   dual Normalization factor: nan

@@ -174,16 +174,24 @@ def wrangle_all(
     # -------------------------------------------
     # STEP 8: Generate QC data
     # -------------------------------------------
-    print("STEP 8: Generate QC data")
-    qc.generate_qc(
-        metadata_file=output_dir/"sample_metadata.norm.tsv",
-        output_dir=output_dir,
-        target_species="hg38",
-        spike1_species="dm6",
-        spike2_species="sac3"
-    )
 
+    print("STEP 8: Generate QC data")
+    
+    qc_dir = output_dir / "basedist_and_gc_outputs"
+    qc_dir.mkdir(exist_ok=True, parents=True)
+    log_file = qc_dir / "GC_bias_QC_report.log"
+    
+    with qc.tee_stdout(log_file):
+        qc.generate_qc(
+            metadata_file=output_dir / "sample_metadata.norm.tsv",
+            output_dir=output_dir,  
+            target_species="hg38",
+            spike1_species="dm6",
+            spike2_species="sac3"
+        )
+    
     print("Workflow complete!")
+
 
 
 def main():

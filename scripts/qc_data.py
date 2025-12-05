@@ -160,6 +160,7 @@ def extract_gc_stats(tagdir_root, suffix_pattern):
 # ============================================================
 # WRAPPER-COMPATIBLE QC FUNCTION
 # ============================================================
+
 def generate_qc(metadata_file: Path, output_dir: Path,
                 target_species: str, spike1_species: str, spike2_species: str):
 
@@ -178,22 +179,25 @@ def generate_qc(metadata_file: Path, output_dir: Path,
         }
     }
 
-    output_dir.mkdir(exist_ok=True, parents=True)
     gc_stats_results = {}
-
+    
+    qc_output_dir = output_dir / "basedist_and_gc_outputs"
+    qc_output_dir.mkdir(exist_ok=True, parents=True)
+    
     for sp, info in species_info.items():
         gc_df = extract_gc_stats(info["tagdir_root"], info["suffix_pattern"])
         if gc_df is not None:
             gc_df["Genome"] = sp
-            out_path = output_dir / f"{sp}_gc_stats.tsv"
+            out_path = qc_output_dir / f"{sp}_gc_stats.tsv"   # <-- use subfolder
             gc_df.to_csv(out_path, sep="\t", index=False)
             gc_stats_results[sp] = out_path
             print(f"Saved {sp} GC stats → {out_path}")
 
+
     if gc_stats_results:
         all_gc = pd.concat([pd.read_csv(p, sep="\t") for p in gc_stats_results.values()], ignore_index=True)
         all_gc["GC_Ratio"] = all_gc["Sample_MeanGC"] / all_gc["Genome_MeanGC"]
-        combined_path = output_dir / "all_gc_stats_combined.tsv"
+        combined_path = qc_output_dir / "all_gc_stats_combined.tsv"
         all_gc.to_csv(combined_path, sep="\t", index=False)
         print(f"Combined GC stats → {combined_path}")
 
@@ -210,6 +214,7 @@ def generate_qc(metadata_file: Path, output_dir: Path,
 # ============================================================
 # CLI ENTRY POINT
 # ============================================================
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Compute GC bias, base composition, and QC report.")
     parser.add_argument("--target_species", required=True)
@@ -220,21 +225,34 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # Resolve base output directory
     base_output_dir = args.output_dir.resolve()
     metadata_file = base_output_dir / "sample_metadata.norm.tsv"
+
+    # Create QC output folder
     output_dir = base_output_dir / "basedist_and_gc_outputs"
     output_dir.mkdir(exist_ok=True, parents=True)
 
+    # Log file inside output_dir
     log_file = output_dir / "GC_bias_QC_report.log"
 
+    # Tee stdout (both console + log)
     with tee_stdout(log_file):
-        generate_qc(
-            metadata_file=metadata_file,
-            output_dir=output_dir,
-            target_species=args.target_species,
-            spike1_species=args.spike1_species,
-            spike2_species=args.spike2_species
-        )
+        # Capture warnings as well
+        with warnings.catch_warnings():
+            warnings.simplefilter("always")
+            print(f"Starting QC report. Log file: {log_file}\n")
+            
+            generate_qc(
+                metadata_file=metadata_file,
+                output_dir=output_dir,
+                target_species=args.target_species,
+                spike1_species=args.spike1_species,
+                spike2_species=args.spike2_species
+            )
+            print("\nQC workflow complete!")
+
 
 
 if __name__ == "__main__":
