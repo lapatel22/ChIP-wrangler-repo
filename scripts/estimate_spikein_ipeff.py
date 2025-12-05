@@ -20,7 +20,8 @@ def estimate_spikein(
     start_position: int = -100,
     end_position: int = 700,
     genome_dirs: list = None,
-    save_file: Path = None  # <--- new argument
+    save_file: Path = None,
+    force_overwrite: bool = False
 ):
     if user_dir is None:
         user_dir = Path.cwd()
@@ -42,7 +43,8 @@ def estimate_spikein(
         SNR_region=SNR_region,
         frag_length=frag_length,
         hist_size=hist_size,
-        hist_bin=hist_bin
+        hist_bin=hist_bin,
+        force_overwrite=force_overwrite
     )
 
     # --- Step 2: Read histograms & metadata ---
@@ -96,6 +98,7 @@ def make_tagdirs(
     frag_length: int = 150,
     hist_size: int = 4000,
     hist_bin: int = 25,
+    force_overwrite: bool = False
 ):
     """
     Make HOMER tag directories and generate TSS histograms for spike-in species.
@@ -119,7 +122,7 @@ def make_tagdirs(
         for sam in sam_files:
             base = sam.stem.replace(".nosuffx2", "")
             tagdir = out_tagdir / f"{base}-tagdir"
-            if not tagdir.exists():
+            if not tagdir.exists() or force_overwrite:
                 cmd = [
                     "makeTagDirectory", str(tagdir), str(sam),
                     "-genome", homer_genome_dict[spike],
@@ -128,14 +131,14 @@ def make_tagdirs(
                 ]
                 print(f"Creating tag directory for {base} ({spike})")
                 subprocess.run(cmd, check=True)
-            else:
+            else: 
                 print(f"Skipping existing tagdir: {tagdir}")
 
         # Create histogram
         tagdirs = sorted(out_tagdir.glob("*-tagdir"))
         if tagdirs:
             output_hist = out_hist / f"hist_{SNR_region}_{spike}.txt"
-            if not output_hist.exists():
+            if not output_hist.exists() or force_overwrite:
                 cmd = [
                     "annotatePeaks.pl", SNR_region, homer_genome_dict[spike],
                     "-size", str(hist_size), "-hist", str(hist_bin), "-d"
@@ -303,6 +306,8 @@ def main():
     parser.add_argument("--hist_bin", type=int, default=25)
     parser.add_argument("--start_position", type=int, default=-100)
     parser.add_argument("--end_position", type=int, default=700)
+    parser.add_argument("--force_overwrite", action="store_true", 
+                       help = "Global option to force overwriting of every step" )
     args = parser.parse_args()
 
     print("=== SCRIPT START ===", flush=True)
@@ -330,7 +335,8 @@ def main():
             hist_bin=args.hist_bin,
             start_position=args.start_position,
             end_position=args.end_position,
-            save_file=save_file
+            save_file=save_file,
+            force_overwrite=args.force_overwrite
         )
     except Exception as e:
         print("ERROR in estimate_spikein:", e, flush=True)

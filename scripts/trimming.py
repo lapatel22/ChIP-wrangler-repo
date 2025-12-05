@@ -67,7 +67,8 @@ def trim_fastq(
     output_dir: Path,
     paired_end: bool = False,
     threads: int = 4,
-    phred_cutoff: int = 20
+    phred_cutoff: int = 20,
+    force_overwrite: bool = False
 ):
     """
     Trim FASTQs using fastp.
@@ -93,7 +94,7 @@ def trim_fastq(
         json_report = output_dir / f"{sample}.fastp.json"
         html_report = output_dir / f"{sample}.fastp.html"
 
-        if out_R1.exists():
+        if out_R1.exists() and not force_overwrite:
             print(f"[Skipping] {sample} already trimmed → {out_R1}")
             continue
 
@@ -136,8 +137,9 @@ def main():
     parser.add_argument("--output_dir", required=True,
                         help="Directory where trimmed FASTQs will be written")
     parser.add_argument("--paired_end", action="store_true")
-    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("--phred_cutoff", type=int, default=20)
+    parser.add_argument("--force_overwrite", action="store_true", help = "Global option to force overwriting of every step")
 
     args = parser.parse_args()
 
@@ -146,7 +148,8 @@ def main():
         output_dir=Path(args.output_dir),
         paired_end=args.paired_end,
         threads=args.threads,
-        phred_cutoff=args.phred_cutoff
+        phred_cutoff=args.phred_cutoff,
+        force_overwrite=args.force_overwrite
     )
 
 

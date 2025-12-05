@@ -13,7 +13,8 @@ def generate_species_bams(
     target_species: str,
     user_dir: str,
     mapq_threshold: int = 50,
-    threads: int = 4,
+    threads: int = 1,
+    force_overwrite: bool = False,
 ):
 
     # ----------------------- Setup paths -----------------------
@@ -39,7 +40,7 @@ def generate_species_bams(
         base = bam_file.name.replace(suffix_to_remove, "")
         filtered_bam = filtered_dir / f"{base}.filtered.bam"
 
-        if filtered_bam.exists():
+        if filtered_bam.exists() and not force_overwrite:
             return f"Skipping {filtered_bam.name} (already exists)"
 
         cmd = [
@@ -68,7 +69,7 @@ def generate_species_bams(
         log_file = output_dir / f"{base}.splitting.log"
 
         sentinel_chrX = output_dir / f"{base}.chrX.bam"
-        if sentinel_chrX.exists():
+        if sentinel_chrX.exists() and not force_overwrite:
             return f"Skipping {base} (already split)"
 
         cmd = [
@@ -142,7 +143,7 @@ def generate_species_bams(
 
             spike_files = sorted(spike_chr_dir.glob(f"{base}.chr*_{species}.bam"))
             out_bam = outputs[species]
-            if out_bam.exists():
+            if out_bam.exists() and not force_overwrite:
                 print(f"Skipping {out_bam.name} (already exists)")
                 continue
             if not spike_files:
@@ -156,7 +157,7 @@ def generate_species_bams(
         # Merge target species
         target_files = sorted(output_dir.glob(f"{base}.chr*.bam"))
         out_bam = outputs[target_species]
-        if out_bam.exists():
+        if out_bam.exists() and not force_overwrite:
             print(f"Skipping {out_bam.name} (already exists)")
             continue
         if not target_files:
@@ -177,7 +178,7 @@ def generate_species_bams(
             nosuff_sam = dir_path / f"{base}.nosuff.sam"
             nosuff2_sam = dir_path / f"{base}.nosuffx2.sam"
 
-            if nosuff2_sam.exists():
+            if nosuff2_sam.exists() and not force_overwrite:
                 print(f"Skipping {nosuff2_sam.name} (already done)")
                 continue
 
@@ -207,8 +208,10 @@ def main():
     parser.add_argument("--spike2_species", required=True, help="Secondary spike-in species or 'none'")
     parser.add_argument("--target_species", required=True, help="Target genome species (e.g., hg38)")
     parser.add_argument("--user_dir", type=Path, default=Path.cwd(), help="Working directory (default: current working directory)")
-    parser.add_argument("--threads", type=int, default=4, help="Threads for BAM processing")
+    parser.add_argument("--threads", type=int, default=1, help="Threads for BAM processing")
     parser.add_argument("--mapq", type=int, default=50, help="Minimum MAPQ to keep")
+    parser.add_argument("--force_overwrite", action="store_true",
+    help="Force all steps to run, even if output files already exist.")
 
     args = parser.parse_args()
 
@@ -219,6 +222,7 @@ def main():
         user_dir=args.user_dir,
         mapq_threshold=args.mapq,
         threads=args.threads,
+        force_overwrite=args.force_overwrite,
     )
 
 

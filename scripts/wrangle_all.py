@@ -26,20 +26,27 @@ import qc_data as qc
 
 def wrangle_all(
     fastq_dir: str,
-    genome_names: list,
     output_dir: str,
+    target_genome: str,
+    target_fasta: str,
+    spike_genomes: str,
+    spike_fastas: str,
+    metadata: str,
+    indexed_genome_dir: str = None,
     paired_end: bool = False,
+    umis: bool = False,
     threads: int = 4,
     skip_trimming: bool = False,
     skip_alignment: bool = False,
-    indexed_genome_dir: str = None,
-    fasta_paths: list = None
+    force_overwrite: bool = False
 ):
     """
     Runs the full ChIP-seq wrangling workflow with options to skip trimming or alignment.
     """
 
     fastq_dir = Path(fastq_dir)
+    target_fasta: Path(target_fasta)
+    spike_fastas: Path(spike_fastas)
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True, parents=True)
 
@@ -54,45 +61,50 @@ def wrangle_all(
     else:
         print("STEP 0: Preprocessing (custom genome creation)")
 
-        # New: pass ABSOLUTE FASTA FILES directly into your preprocessing function
-        pp.create_custom_genome(
-            genome_names=genome_names,
-            output_dir=output_dir,
-            fasta_paths=fasta_paths      # <–– NEW optional override
-        )
-
-        pp.generate_sample_metadata(fastq_dir=fastq_dir, output_dir=output_dir)
-
-        genome_dir = output_dir / "custom_genome"
+    pp.create_custom_genome(
+        output_dir=output_dir,
+        target_genome=target_genome,
+        target_fasta=target_fasta,
+        spike_genomes=spike_genomes,
+        spike_fastas=spike_fastas
+    )
 
     # -------------------------------------------
     # STEP 1: Trimming
     # -------------------------------------------
-    if not skip_trimming:
+    trimmed_dir = output_dir / "fastq_trimmed"
+    
+    if skip_trimming and not force_overwrite and trimmed_dir.exists():
+        print("STEP 1: Trimming skipped!")
+    else:
         print("STEP 1: Trimming")
         # STEP 1: Trimming
         trim.trim_fastq(
             fastq_dir=fastq_dir,          # raw fastq
             output_dir=output_dir,        # base project dir
-            paired_end=paired_end
+            paired_end=paired_end,
+            force_overwrite=force_overwrite
         )
-    else:
-        print("STEP 1: Trimming skipped!")
-
+        
     # -------------------------------------------
     # STEP 2: Alignment
     # -------------------------------------------
-    if not skip_alignment:
+    
+    alignment_dir = output_dir / "alignment"
+
+    if skip_alignment and not force_overwrite and alignment_dir.exists():
+        print("STEP 2: Alignment skipped!")
+    else:
         print("STEP 2: Alignment")
         align.align_fastq(
             fastq_dir=output_dir/"fastq_trimmed",
             genome_dir=genome_dir,
             output_dir=output_dir,   # BASE PROJECT DIR
             paired_end=paired_end,
-            threads=threads
+            threads=threads,
+            force_overwrite=force_overwrite
         )
-    else:
-        print("STEP 2: Alignment skipped!")
+
 
     # -------------------------------------------
     # STEP 3: Remove PCR duplicates
@@ -103,7 +115,8 @@ def wrangle_all(
         output_dir=output_dir,    # BASE PROJECT DIR
         paired=False,        # or however you detect paired-end
         umis=False,            # True/False
-        threads=threads
+        threads=threads,
+        force_overwrite=force_overwrite
     )
     
     # -------------------------------------------
@@ -124,7 +137,8 @@ def wrangle_all(
         target_species=target_species,
         user_dir=output_dir,       # this is the base project dir
         mapq_threshold=50,         # optional: change if needed
-        threads=threads
+        threads=threads,
+        force_overwrite=force_overwrite
     )
 
     # -------------------------------------------
@@ -134,6 +148,7 @@ def wrangle_all(
     
     stats.update_sample_metadata(
         user_dir=output_dir,
+        metadata=metadata,
         target_species=genome_names[0],  # hg38
         spike1_species=genome_names[1] if len(genome_names) > 1 else None,  # dm6
         spike2_species=genome_names[2] if len(genome_names) > 2 else None,  # sac3
@@ -158,7 +173,8 @@ def wrangle_all(
         frag_length=150,                                    # optional
         hist_size=4000,                                     # optional
         hist_bin=25,                                        # optional
-        save_file=save_file                                 # always save
+        save_file=save_file,                                # always save
+        force_overwrite=force_overwrite
     )
 
     # -------------------------------------------
@@ -168,7 +184,7 @@ def wrangle_all(
     print("STEP 7: Normalize tag directories")
     norm.normalize_tagdirs(
         metadata_file=output_dir/"sample_metadata.norm.tsv",
-        genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}
+        genome_dirs={genome: output_dir/f"{genome}_data" for genome in genome_names}, force_overwrite=force_overwrite
     )
 
     # -------------------------------------------
@@ -197,36 +213,45 @@ def wrangle_all(
 def main():
     parser = argparse.ArgumentParser(description="Run full ChIP-seq wrangling workflow.")
     parser.add_argument("--fastq_dir", required=True)
-    parser.add_argument("--genomes", nargs="+", required=True)
+    parser.add_argument("--target_genome", required=True, 
+                       help = "Name of target genome")
+    parser.add_argument("--target_fasta", required=True,
+                        help="Absolute paths to FASTA files for custom combined genome construction.")
+    parser.add_argument("--spike_genomes", nargs="+", required=True, 
+                       help = "Name of spike-in genomes (list of strings, example: dm6 sac3)")
+    parser.add_argument("--spike_fastas", nargs="+", required=True,
+                        help="Absolute paths to spike-in FASTA files for custom combined genome construction, example: dm6_genome.fa sacCer3_genome.fa")
+    parser.add_argument("--metadata", required=True, 
+                        help = "Path to the sample metadata tsv file")
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--paired_end", action="store_true")
-    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--umis", action="store_true")
+    parser.add_argument("--threads", type=int, default=1, help = "Specifies number of cpus to use when multithreding is possible")
     parser.add_argument("--skip_trimming", action="store_true")
     parser.add_argument("--skip_alignment", action="store_true")
-
-    # NEW ARGUMENTS:
-    parser.add_argument(
-        "--indexed_genome_dir",
-        help="If provided, skip custom genome creation and use this directory with BWA index files."
-    )
-    parser.add_argument(
-        "--fasta_paths",
-        nargs="+",
-        help="Absolute paths to FASTA files for custom combined genome construction."
-    )
+    parser.add_argument("--force_overwrite", action="store_true",
+    help="Global option to force overwriting of every step."
+)
+    parser.add_argument("--indexed_genome_dir",
+                        help="If provided, skip custom genome creation and use this directory containing BWA index files.")
 
     args = parser.parse_args()
 
     wrangle_all(
         fastq_dir=args.fastq_dir,
-        genome_names=args.genomes,
+        target_genome=args.target_genome,
+        target_fasta=args.target_fasta,
+        spike_genomes=args.spike_genomes,
+        spike_fastas=args.spike_fastas,
+        metadata=args.metadata,
         output_dir=args.output_dir,
         paired_end=args.paired_end,
+        umis=args.umis,
         threads=args.threads,
         skip_trimming=args.skip_trimming,
         skip_alignment=args.skip_alignment,
-        indexed_genome_dir=args.indexed_genome_dir,
-        fasta_paths=args.fasta_paths
+        force_overwrite=args.force_overwrite,
+        indexed_genome_dir=args.indexed_genome_dir
     )
 
 

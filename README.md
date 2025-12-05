@@ -171,26 +171,32 @@ Running from scratch:
 
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
-        --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
-        --output_dir
-        --threads 16
+        --output_dir . --threads 16 
+        --target_genome hg38 --target_fasta ../example/genomes/hg38_genome.fa 
+        --spike_genomes dm6 sacCer3 
+        --spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa 
+        --metadata sample_names.tsv
 
 If you already have the custom indexed genome (with target and spike-in species), you can specify the path to the directory to skip this step: 
 
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
-        --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
-        --output_dir . 
+        --output_dir . --threads 16 
+        --target_genome hg38 --target_fasta ../example/genomes/hg38_genome.fa 
+        --spike_genomes dm6 sacCer3 
+        --spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa 
+        --metadata sample_names.tsv
         --indexed_genome_dir genomes/hg38_dm6_sacCer3/
-        --threads 16
 
 Finally, if you already trimmed/aligned your fastq files, you can also skip those steps for speed:
 
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
-        --genomes hg38 dm6 sac3 
-        --output_dir . 
-        --threads 16
+        --output_dir . --threads 16 
+        --target_genome hg38 --target_fasta ../example/genomes/hg38_genome.fa 
+        --spike_genomes dm6 sacCer3 
+        --spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa 
+        --metadata sample_names.tsv
         --skip_trimming --skip_alignment 
         --indexed_genome_dir genomes/hg38_dm6_sacCer3/
 

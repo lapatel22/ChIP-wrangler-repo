@@ -45,7 +45,8 @@ def align_fastq(
     fastq_dir: Path = None,
     output_dir: Path = None,
     paired_end: bool = False,
-    threads: int = 4,
+    threads: int = 1,
+    force_overwrite: bool = False
 ):
     """
     Align FASTQ files using BWA MEM.
@@ -124,7 +125,7 @@ def align_fastq(
         bam_out = bam_dir / f"{sample}.bam"
         log_file = bam_dir / f"{sample}.bwa.log"
 
-        if bam_out.exists():
+        if bam_out.exists() and not force_overwrite:
             print(f"[Skipping] BAM exists for {sample}")
             continue
 
@@ -147,7 +148,7 @@ def align_fastq(
         bam_out = bam_dir / f"{sample}.bam"
         log_file = bam_dir / f"{sample}.bwa.log"
 
-        if bam_out.exists():
+        if bam_out.exists() and not force_overwrite:
             print(f"[Skipping] BAM exists for {sample}")
             continue
 
@@ -175,8 +176,10 @@ if __name__ == "__main__":
                         help="Base directory containing fastq_trimmed/ and where concat_align/ will be written")
     parser.add_argument("--fastq_dir", type=Path,
                         help="Directory containing trimmed FASTQs; default <output_dir>/fastq_trimmed")
-    parser.add_argument("--threads", type=int, default=8)
+    parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("--paired", action="store_true")
+    parser.add_argument("force_overwrite", action="store_true", 
+                       help = "Global option to force overwriting of every step")
 
     args = parser.parse_args()
 
@@ -186,4 +189,5 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         paired_end=args.paired,
         threads=args.threads,
+        force_overwrite=args.force_overwrite
     )

@@ -46,7 +46,7 @@ def run(cmd, log_file=None):
 
 # -------------------- Deduplication -------------------- #
 
-def dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=4):
+def dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=1,force_overwrite=False):
     bam_files = sorted(Path(bam_dir).glob("*.bam"))
     for bam in bam_files:
         base = bam.stem
@@ -55,7 +55,7 @@ def dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=4):
         nodup_bam = dedup_dir / f"{base}.nodup.bam"
         log_file = dedup_dir / f"{base}.log"
 
-        if nodup_bam.exists():
+        if nodup_bam.exists() and not force_overwrite:
             print(f"Skipping {base}: output already exists.")
             continue
 
@@ -64,7 +64,7 @@ def dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=4):
         run(["samtools", "markdup", "-r", "-s", str(sorted_bam), str(nodup_bam)], log_file)
 
 
-def dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=4):
+def dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=1,force_overwrite=False):
     bam_files = sorted(Path(bam_dir).glob("*.sam"))
     for sam in bam_files:
         base = sam.stem
@@ -75,7 +75,7 @@ def dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=4):
         nodup_bam = dedup_dir / f"{base}.nodup.bam"
         log_file = dedup_dir / f"{base}.log"
 
-        if nodup_bam.exists():
+        if nodup_bam.exists() and not force_overwrite:
             print(f"Skipping {base}: output already exists.")
             continue
 
@@ -86,7 +86,7 @@ def dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=4):
         run(["samtools", "markdup", "-r", "-s", str(sorted_bam), str(nodup_bam)], log_file)
 
 
-def dedup_with_umis(intermed_dir, dedup_dir, threads=4):
+def dedup_with_umis(intermed_dir, dedup_dir, threads=1,force_overwrite=False):
     import glob
 
     sorted_bams = glob.glob(str(intermed_dir / "*.sorted.bam"))
@@ -95,7 +95,7 @@ def dedup_with_umis(intermed_dir, dedup_dir, threads=4):
         output_bam = dedup_dir / f"{base}.dedup.new.unique.bam"
         log_file = dedup_dir / f"{base}.log"
 
-        if output_bam.exists():
+        if output_bam.exists() and not force_overwrite:
             print(f"Skipping {base}: output already exists.")
             continue
 
@@ -112,7 +112,7 @@ def dedup_with_umis(intermed_dir, dedup_dir, threads=4):
         ], log_file)
 
 
-def remove_duplicates(output_dir, paired=False, umis=False, threads=4):
+def remove_duplicates(output_dir, paired=False, umis=False, threads=1, force_overwrite=False):
 
     output_dir = Path(output_dir)
 
@@ -139,7 +139,10 @@ def main():
     parser.add_argument("--output_dir", required=True, type=Path)
     parser.add_argument("--paired", action="store_true", help="Indicate paired-end reads")
     parser.add_argument("--umis", required=True, choices=["TRUE","FALSE"], help="Whether UMIs are present in reads")
-    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument("force_overwrite", action="store_true", 
+                       help = "Global option to force overwriting of every step")
+
     args = parser.parse_args()
 
     bam_dir = args.output_dir / "concat_align"
@@ -153,9 +156,9 @@ def main():
         dedup_with_umis(intermed_dir, dedup_dir, threads=args.threads)
     else:
         if args.paired:
-            dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=args.threads)
+            dedup_paired_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=args.threads, force_overwrite=args.force_overwrite)
         else:
-            dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=args.threads)
+            dedup_single_end_no_umis(bam_dir, intermed_dir, dedup_dir, threads=args.threads, force_overwrite=args.force_overwrite)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,9 @@ import argparse
 import pandas as pd
 from pathlib import Path
 
-def normalize_tagdirs(metadata_file: Path, genome_dirs: dict):
+def normalize_tagdirs(metadata_file: Path, 
+                      genome_dirs: dict, 
+                      force_overwrite:bool=False):
     # genome_dirs keys = target + spike species
     # assume the first key is target species, rest are spike species
     species_list = list(genome_dirs.keys())
@@ -62,7 +64,7 @@ def normalize_tagdirs(metadata_file: Path, genome_dirs: dict):
         tagdir_name = f"{sample_id}.{target_species}-tagdir"
         tagdir_path = base_dir / tagdir_name
 
-        if tagdir_path.exists():
+        if tagdir_path.exists() and not force_overwrite:
             print(f" Tagdir exists for {sample_id}, skipping makeTagDirectory.")
             continue
 
@@ -148,12 +150,15 @@ def main():
     parser.add_argument("--target_species", required=True)
     parser.add_argument("--spike_species", nargs="+", required=True,
                         help="List of spike genomes for normalization (e.g. dm6 sac3)")
+    parser.add_argument("force_overwrite", action="store_true", 
+                       help = "Global option to force overwriting of every step")
 
     args = parser.parse_args()
 
     user_dir = args.user_dir.resolve()
     target = args.target_species
     spikes = args.spike_species
+    force_overwrite=args.force_overwrite
 
     # Construct genome_dirs dictionary
     genome_dirs = {target: user_dir / f"{target}_data"}
@@ -163,7 +168,8 @@ def main():
     metadata_file = args.metadata_file or user_dir / "sample_metadata.norm.tsv"
 
     normalize_tagdirs(metadata_file=metadata_file, genome_dirs=genome_dirs,
-                      target_species=target, spike_species=spikes)
+                      target_species=target, spike_species=spikes,
+                     force_overwrite=force_overwrite)
 
 
 if __name__ == "__main__":
