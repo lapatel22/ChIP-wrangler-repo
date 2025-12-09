@@ -6,14 +6,14 @@ import argparse
 import pandas as pd
 from pathlib import Path
 
-def normalize_tagdirs(metadata_file: Path, 
-                      genome_dirs: dict, 
-                      force_overwrite:bool=False):
-    # genome_dirs keys = target + spike species
-    # assume the first key is target species, rest are spike species
-    species_list = list(genome_dirs.keys())
-    target_species = species_list[0]
-    spike_species = species_list[1:]
+def normalize_tagdirs(
+    metadata_file: Path,
+    output_dir: Path,
+    target_species: str,
+    spike1_species: str = None,
+    spike2_species: str = None,
+    force_overwrite: bool = False
+):
     """
     Normalize HOMER tag directories of the target species based on spike-in factors.
 
@@ -29,6 +29,8 @@ def normalize_tagdirs(metadata_file: Path,
         List of spike genomes (e.g., ["dm6", "sac3"]) to use for normalization factors
     """
 
+    
+
     seqstats_file = Path(metadata_file).resolve()
     seqstats = pd.read_csv(seqstats_file, sep="\t")
 
@@ -43,19 +45,21 @@ def normalize_tagdirs(metadata_file: Path,
     print("\nAvailable columns:", seqstats.columns.tolist())
 
     # Directories
-    target_dir = genome_dirs[target_species]
+    target_dir = output_dir / f"{target_species}_data"
     aligned_dir = target_dir / f"{target_species}_aligned"
     base_dir = target_dir / f"{target_species}_tagdirs"
-    output_dir = target_dir / f"{target_species}_normalized_tagdirs"
+    output_norm_dir = target_dir / f"{target_species}_normalized_tagdirs"
+
+    spike_species = [s for s in [spike1_species, spike2_species] if s is not None]
 
     os.makedirs(base_dir, exist_ok=True)
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_norm_dir, exist_ok=True)
 
     suffix_to_remove = f".{target_species}-tagdir"
 
     print(f"\nProcessing target species: {target_species}")
     print("Tagdirs will be written to:", base_dir)
-    print("Normalized tagdirs will be written to:", output_dir)
+    print("Normalized tagdirs will be written to:", output_norm_dir)
     print("Looking for SAM files in:", aligned_dir)
 
     # ================= Step 1: Make tag directories =================
@@ -104,7 +108,7 @@ def normalize_tagdirs(metadata_file: Path,
 
             factor = row[spike_col]
             new_tagdir_name = f"{sample_id}.{spike}.normalized-tagdir"
-            new_tagdir_path = output_dir / new_tagdir_name
+            new_tagdir_path = output_norm_dir / new_tagdir_name
 
     # NOTE: previously here i had an if statement, and skipped normalizing a tagdir if it already existed. given normalization is fast, we now remake every time
 
@@ -146,28 +150,22 @@ def main():
         description="Create HOMER tag directories for the target species and apply spike-in normalization."
     )
     parser.add_argument("--metadata_file", type=Path, help="Path to sample_metadata.norm.tsv")
-    parser.add_argument("--user_dir", type=Path, default=Path.cwd())
-    parser.add_argument("--target_species", required=True)
-    parser.add_argument("--spike_species", nargs="+", required=True,
-                        help="List of spike genomes for normalization (e.g. dm6 sac3)")
+    parser.add_argument("--output_dir", type=Path, default=Path.cwd())
     parser.add_argument("force_overwrite", action="store_true", 
                        help = "Global option to force overwriting of every step")
 
     args = parser.parse_args()
 
-    user_dir = args.user_dir.resolve()
-    target = args.target_species
-    spikes = args.spike_species
+    output_dir = args.output_dir.resolve()
     force_overwrite=args.force_overwrite
 
     # Construct genome_dirs dictionary
-    genome_dirs = {target: user_dir / f"{target}_data"}
-    for spike in spikes:
-        genome_dirs[spike] = user_dir / f"{spike}_data"
+    genome_dirs = {target: output_dir / f"{target_species}_data"}
+    genome_dirs[spike] = output_dir / f"{spike}_data"
 
-    metadata_file = args.metadata_file or user_dir / "sample_metadata.norm.tsv"
+    metadata_file = args.metadata_file or output_dir / "sample_metadata.norm.tsv"
 
-    normalize_tagdirs(metadata_file=metadata_file, genome_dirs=genome_dirs,
+    normalize_tagdirs(metadata_file=metadata_file,
                       target_species=target, spike_species=spikes,
                      force_overwrite=force_overwrite)
 

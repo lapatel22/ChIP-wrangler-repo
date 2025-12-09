@@ -8,21 +8,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def generate_species_bams(
+    target_species: str,
+    output_dir: str,
     spike1_species: str,
     spike2_species: str,
-    target_species: str,
-    user_dir: str,
     mapq_threshold: int = 50,
     threads: int = 1,
     force_overwrite: bool = False,
 ):
 
     # ----------------------- Setup paths -----------------------
-    user_dir = Path(user_dir)
+    output_dir = Path(output_dir)
 
-    input_dir = user_dir / "concat_align" / "dedup_out"
-    output_dir = user_dir / "bams_chr_sep"
-    filtered_dir = user_dir / "filtered_bams"
+    input_dir = output_dir / "concat_align" / "dedup_out"
+    output_dir = output_dir / "bams_chr_sep"
+    filtered_dir = output_dir / "filtered_bams"
 
     bamutil_path = "bam"       # bamUtil binary
     samtools_path = "samtools" # samtools binary
@@ -103,14 +103,14 @@ def generate_species_bams(
     print("\n=== Step 3: Merging chromosomes by species ===")
 
     species_map = {
-        spike1_species: user_dir / f"{spike1_species}_data" / f"{spike1_species}_aligned",
-        target_species: user_dir / f"{target_species}_data" / f"{target_species}_aligned",
+        spike1_species: output_dir / f"{spike1_species}_data" / f"{spike1_species}_aligned",
+        target_species: output_dir / f"{target_species}_data" / f"{target_species}_aligned",
     }
 
     # Only include spike2 if it's real
     spike2_present = spike2_species.lower() not in ["none", "na", "null", "0", ""]
     if spike2_present:
-        species_map[spike2_species] = user_dir / f"{spike2_species}_data" / f"{spike2_species}_aligned"
+        species_map[spike2_species] = output_dir / f"{spike2_species}_data" / f"{spike2_species}_aligned"
 
     # Create directories
     for path in species_map.values():
@@ -204,10 +204,10 @@ def generate_species_bams(
 
 def main():
     parser = argparse.ArgumentParser(description="Split and filter BAMs by species.")
-    parser.add_argument("--spike1_species", required=True, help="Primary spike-in species (e.g., dm6)")
-    parser.add_argument("--spike2_species", required=True, help="Secondary spike-in species or 'none'")
-    parser.add_argument("--target_species", required=True, help="Target genome species (e.g., hg38)")
-    parser.add_argument("--user_dir", type=Path, default=Path.cwd(), help="Working directory (default: current working directory)")
+    parser.add_argument("--spike1_species", required=True, help="Spike-in species 1 (e.g., dm6)")
+    parser.add_argument("--spike2_species", required=True, help="Spike-in species 2 (e.g., sacCer3)")
+    parser.add_argument("--target_species", required=True, help="Target species (e.g., hg38)")
+    parser.add_argument("--output_dir", type=Path, default=Path.cwd(), help="Working directory (default: current working directory)")
     parser.add_argument("--threads", type=int, default=1, help="Threads for BAM processing")
     parser.add_argument("--mapq", type=int, default=50, help="Minimum MAPQ to keep")
     parser.add_argument("--force_overwrite", action="store_true",
@@ -219,7 +219,7 @@ def main():
         spike1_species=args.spike1_species,
         spike2_species=args.spike2_species,
         target_species=args.target_species,
-        user_dir=args.user_dir,
+        output_dir=args.output_dir,
         mapq_threshold=args.mapq,
         threads=args.threads,
         force_overwrite=args.force_overwrite,
