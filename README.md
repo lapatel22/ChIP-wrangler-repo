@@ -51,8 +51,13 @@ The general steps are as follows:
  - **Estimation of IP efficiency between samples with spike-ins**: 
  - **Normalizing Target data**
  - **QC Report**: a report .html is generated visualizing nucleotide frequencies, spike-in target ratios, and other important quality checks
- - Downstream analysis, which can include:
-   - **DESeq2 with ChIP-wrangler**: enabling identification of differential peaks
+
+
+The downstream analysis is done by wrangle_analysis, and includes: 
+
+ - **Peak Finding**
+ - **DESeq2 with ChIP-wrangler**: enabling identification of differential peaks
+ - **Visualization**
 
 An in-depth explanation of each function is available in the [detailed workflow page](#Detailed-workflow).
 
@@ -74,7 +79,7 @@ One liner to install chip-wrangler from GitHub:
 
 This will download the local python scripts used for this analysis. To run each function separately see section [Running functions separately](#Running-functions-separately)
 
-The `chip_wranlger_env.yml` file is included for conda installation, to  help handle dependencies. 
+The `chip_wranlger_env.yml` file is included for conda installation, to help handle dependencies. 
 
 To install all required and recommended dependencies from conda:
 
@@ -92,6 +97,8 @@ for `wrangle_all`:
  - python
  - R
  - pandas
+
+Refer to `chip_wranlger_env.yml` for all package versions.
 
 `wrangle_analysis` additionally requires:
 
@@ -129,16 +136,20 @@ There are a few requirements before running ChIP-wrangler:
 
 User must specify these columns so that ChIP-wrangler knows what samples to use as a reference when normalizing, which samples are inputs, etc.
 
-        head sample_names.tsv 
-        library.ID
-        HelaS3_0sync_100inter_1_H3K9ac_1
-        HelaS3_0sync_100inter_1_H3K9ac_2
-        HelaS3_0sync_100inter_1_H3K9ac_3
-        HelaS3_0sync_100inter_1_input_1
-        HelaS3_100sync_0inter_1_H3K9ac_1
-        HelaS3_100sync_0inter_1_H3K9ac_2
-        HelaS3_100sync_0inter_1_H3K9ac_3
-        HelaS3_100sync_0inter_1_input_1
+        sample_names.tsv 
+
+    | file.path | library.ID | Biorep |	IP | TechRep |  Control	| Condition |
+    |---|---|---|---|---|---|---|
+    | fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_1.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_1 | 1 | H3K9ac | 1 | False | 100inter 
+    | fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_2.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_2	| 1	| H3K9ac	| 2	| False	| 100inter
+    | fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_3.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_3	| 1	| H3K9ac	| 3	| False	| 100inter
+
+fastqfiles/HelaS3_0sync_100inter_1_input_1.fastq.gz	HelaS3_0sync_100inter_1_input_1	1	input	1	False	100inter
+fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_1.fastq.gz	HelaS3_100sync_0inter_1_H3K9ac_1	1	H3K9ac	1	True	0inter
+fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_2.fastq.gz	HelaS3_100sync_0inter_1_H3K9ac_2	1	H3K9ac	2	True	0inter
+fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_3.fastq.gz	HelaS3_100sync_0inter_1_H3K9ac_3	1	H3K9ac	3	True	0inter
+fastqfiles/HelaS3_100sync_0inter_1_input_1.fastq.gz	HelaS3_100sync_0inter_1_input_1	1	input	1	True	0inter
+
     
 Other naming convention rules: 
 
