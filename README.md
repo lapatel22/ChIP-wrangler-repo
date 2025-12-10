@@ -241,7 +241,7 @@ Below are the commands that constitute the ChIP-wrangler workflow and would norm
     [--threads int] [--force_overwrite]
 
     alignment.py 
-    --target_genome TARGET_GENOME 
+    --target_genome TARGET_NAME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --genome_dir DIR --output_dir DIR 
     [--threads int] [--paired TRUE/FALSE] 
@@ -253,19 +253,19 @@ Below are the commands that constitute the ChIP-wrangler workflow and would norm
     [--threads int] [--force_overwrite]
 
     generate_species_bams.py 
-    --target_genome TARGET_GENOME 
+    --target_genome TARGET_NAME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --output_dir DIR [--threads int] 
     [--mapq MAPQ_CUTOFF] [--force_overwrite]
 
     get_sequencing_stats.py 
-    --target_genome TARGET_GENOME 
+    --target_genome TARGET_NAME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --metadata SAMPLE_NAMES.TSV --output_dir DIR 
     [--samtools_path SAMTOOLS_PATH]
 
     estimate_spikein_ipeff.py 
-    --target_genome TARGET_GENOME 
+    --target_genome TARGET_NAME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --metadata output_dir/sample_metadata.tsv 
     [--SNR_region REGION] [--frag_length] 
@@ -273,14 +273,13 @@ Below are the commands that constitute the ChIP-wrangler workflow and would norm
     [--save_file filename] [--threads int] [--force_overwrite]
 
     normalize_tagdirs.py 
-    --target_genome TARGET_GENOME 
+    --target_genome TARGET_NAME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     [--frag_length int] [--threads int] [--force_overwrite]
 
     QC_data.py 
-    --target_species TARGET_SPECIES 
-    --spike1_species SPIKE1_SPECIES 
-    --spike2_species SPIKE2_SPECIES 
+    --target_genome TARGET_NAME 
+    --spike_genomes SPIKE1_SPECIES SPIKE2_SPECIES 
     [--force_overwrite]
 
 Below is an example of real arguments: 
