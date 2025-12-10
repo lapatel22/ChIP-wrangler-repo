@@ -318,20 +318,20 @@ The second flexible step is alignment. However, this step can only be skipped if
 
 Steps: 
 
-1. **Creating the custom genome yourself**: You can run `00_preprocessing`, which will preppare the genomes specified for sample alignment. If you have custom genomes that are not available through HOMER/conventional routes, instructions for how to label the genome fasta files and create your own indexed genome are also provided in the section [00_preprocessing](#00_preprocessing).
-2. **Alignment**: `wrangle_all` uses BWA MEM to align to the custom genome, and can support single-end and paired-end alignments. If you wish to use a different aligner, you can generate the genome using either option in step 1, then align yourself, or modify `02_alignment_to_concatenated_genome` with your alignment parameters. The alignment files must be placed in `concat_align` for downstream processing.
+1. **Creating the custom genome yourself**: You can run `preprocessing`, which will preppare the genomes specified for sample alignment. If you have custom genomes that are not available through HOMER/conventional routes, instructions for how to label the genome fasta files and create your own indexed genome are also provided in the section [00_preprocessing](#00_preprocessing).
+2. **Alignment**: `wrangle_all` uses BWA MEM to align to the custom genome, and can support single-end and paired-end alignments. If you wish to use a different aligner, you can generate the genome using either option in step 1, then align yourself, or modify `alignment` with your alignment parameters. The alignment files must be placed in `concat_align` for downstream processing.
 
 To skip these steps, run: 
 
-python run_wrangle_all.py \
-    --fastq_dir ./fastqfiles \
-    --genomes hg38 dm6 sacCer3 \
-    --output_dir ./chip_wrangled_outputs \
-    --single_end \
-    --threads 8 \
-    --epitope_type histone \
-    --skip_trimming = True \
-    --skip_alignment = True
+    python scripts/wrangle_all.py 
+        --fastq_dir fastqfiles/ 
+        --output_dir . --threads 16 
+        --target_genome hg38 --target_fasta genomes/hg38_genome.fa 
+        --spike_genomes dm6 sacCer3 
+        --spike_fastas genomes/dm6_genome.fa genomes/sacCer3_genome.fa 
+        --metadata sample_names.tsv
+        --skip_trimming --skip_alignment 
+        --indexed_genome_dir hg38_dm6_sacCer3_indexed/
 
 ### input samples
 
@@ -398,27 +398,30 @@ The genomes configured with HOMER are safe for all ChIP-wrangler functions. Howe
 
 Additionally, if the custom genome name is very long it creates long header names in combined FASTAs and downstream steps which can cause problems later. 
 
-The `00_preprocessing` step will automatically strip special characters from the genome names specified, and truncate at 20 characters, which will prevent most issues. However, the user can also add their own desired genome labels in the script directly. The below example is used for the *S. cerevisiae* genome sacCer3, where we label chromosomes with "sac3" instead of "sacCer3". The optional argument --spikein_genomes_symbols can be used to create custom spike-in genome labels
+The `preprocessing` step will automatically strip special characters from the genome names specified, and truncate at 20 characters, which will prevent most issues. However, the user can also add their own desired genome labels in the script directly. The below example is used for the *S. cerevisiae* genome sacCer3, where we label chromosomes with "sac3" instead of "sacCer3". The optional argument --spikein_genomes_symbols can be used to create custom spike-in genome labels
 
 ## 00_preprocessing
 
 ### Required Arguments: 
 
- - target_genome = path to fasta file of target genome
- - spikein_genomes = paths to fasta files of spike-in genomes
+ - target_genome = name/abbreviation of target genome (e.g. hg38)
+ - target_fasta = path to fasta file of target genome
+ - spike_genomes = names/abbreviations of spike-in genomes (e.g. dm6 sacCer3)
+ - spikein_fastas = paths to fasta files of spike-in genomes
+ - output_dir: if you are not in the ChIP-wrangler working directory, specify the path here
+
 
 ### Optional arguments: 
 
- - user_dir: if you are not in the ChIP-wrangler working directory, specify the path here
- - spikein_genomes_symbols = `["dm6", "sac3"]` if the user wants custom labels for downstream
+ - output_dir: if you are not in the ChIP-wrangler working directory, specify the path here
 
 Usage:
 
-        00_preprocessing.py --target_genome TARGET_GENOME.fa TARGET_NAME --spike1_genome SPIKE1_GENOME.fa SPIKE1_NAME --spike2_genome SPIKE2_GENOME.fa SPIKE2_NAME
+        preprocessing.py --target_genome TARGET_NAME --spike_genomes SPIKE1_NAME SPIKE2_NAME --spike_fastas SPIKE1_GENOME.fa SPIKE2_GENOME.fa 
 
 ### Output: 
 
-The folder `target_spikein1_spikein2/` containing the indexed custom genome is created, named with the target genome/spike-in genome names given
+The folder `target_spikein1_spikein2_indexed/` containing the indexed custom genome is created, named with the target genome/spike-in genome names given
 
 ### General workflow:
 
@@ -448,15 +451,6 @@ Now we can index the genome fasta file, using the preferred aligner. For example
 The first argument “genome_prefix” will the prefix of the indexed genome files created:
 
 ![image.png](readme_assets/cc43b284-85a5-4306-adcc-4c997823a456.png)
-
-
-#### Sample metadata file
-
-The metadata file is simply a tab-separated text file with one column named "library.ID", and filled with sample names. You can make this in excel/notepad, or, if you are in the directory containing fastq files you can generate it programatically: 
-
-`(echo -e "library.ID"; for i in *.fastq.gz; do echo "${i%.fastq.gz}"; done) > sample_names.tsv`
-
-Be mindful if you have paired end reads, etc. as there should be only one row/entry for each library.
 
 ## 01_trimming_fastqs
 
