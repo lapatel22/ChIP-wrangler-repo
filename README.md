@@ -154,7 +154,6 @@ Other naming convention rules:
 
  - No special characters besides "_" "-" or "."
 
-
 4. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is an argument: "output_dir".
 
 When you begin, your working directory should look like: 
@@ -171,9 +170,9 @@ ChIP-wrangler will build a folder structure from this directory, once all steps 
 For the tutorial, we run `wrangle_all` with the following parameters: 
 
 - target_genome hg38
-- target_fasta ../example/genomes/hg38_genome.fa
+- target_fasta genomes/hg38_genome.fa
 - spike_genomes dm6 sacCer3
-- spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa
+- spike_fastas genomes/dm6_genome.fa genomes/sacCer3_genome.fa
 - metadata = sample_names.tsv
 - threads = 16 for speed
 - paired_end = default False, if paired, specify with `--paried_end TRUE`
@@ -184,9 +183,9 @@ Running from scratch:
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
         --output_dir . --threads 16 
-        --target_genome hg38 --target_fasta ../example/genomes/hg38_genome.fa 
+        --target_genome hg38 --target_fasta genomes/hg38_genome.fa 
         --spike_genomes dm6 sacCer3 
-        --spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa 
+        --spike_fastas genomes/dm6_genome.fa genomes/sacCer3_genome.fa 
         --metadata sample_names.tsv
 
 If you already have the custom indexed genome (with target and spike-in species), you can specify the path to the directory to skip this step: 
@@ -194,23 +193,23 @@ If you already have the custom indexed genome (with target and spike-in species)
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
         --output_dir . --threads 16 
-        --target_genome hg38 --target_fasta ../example/genomes/hg38_genome.fa 
+        --target_genome hg38 --target_fasta genomes/hg38_genome.fa 
         --spike_genomes dm6 sacCer3 
-        --spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa 
+        --spike_fastas genomes/dm6_genome.fa genomes/sacCer3_genome.fa 
         --metadata sample_names.tsv
-        --indexed_genome_dir genomes/hg38_dm6_sacCer3/
+        --indexed_genome_dir hg38_dm6_sacCer3_indexed/
 
 Finally, if you already trimmed/aligned your fastq files, you can also skip those steps for speed:
 
     python scripts/wrangle_all.py 
         --fastq_dir fastqfiles/ 
         --output_dir . --threads 16 
-        --target_genome hg38 --target_fasta ../example/genomes/hg38_genome.fa 
+        --target_genome hg38 --target_fasta genomes/hg38_genome.fa 
         --spike_genomes dm6 sacCer3 
-        --spike_fastas ../example/genomes/dm6_genome.fa ../example/genomes/sacCer3_genome.fa 
+        --spike_fastas genomes/dm6_genome.fa genomes/sacCer3_genome.fa 
         --metadata sample_names.tsv
         --skip_trimming --skip_alignment 
-        --indexed_genome_dir genomes/hg38_dm6_sacCer3/
+        --indexed_genome_dir hg38_dm6_sacCer3_indexed/
 
 Other optional arguments include: 
 
@@ -218,15 +217,6 @@ Other optional arguments include:
  - umis: if the reads have UMIs, chosing this option means ChIP-wrangler will use umi_tools to deduplicate UMIs instead of autodetecting PCR duplicates with the standard method (which often overestimates duplicates)
  - paired: if reads are paired end, specifying --paired TRUE will allow ChIP-wrangler to align with paired end settings, otherwise, alignment will be single end.
  - force_overwrite: forces all intermediate files to be overwritten, so  ChIP-wrangler performs every step even if some were previously completed. The default behavior of ChIP-wrangler is to autodetect the output files of each step, and skip if present, for all steps except for calculation of normalization factors. 
-
-        python scripts/wrangle_all.py 
-            --fastq_dir fastqfiles/ 
-            --genomes hg38_genome.fa hg38 dm6_genome.fa dm6 sac3_genome.fa sac3 
-            --output_dir
-            --threads 16
-            --umis TRUE
-            --paired TRUE
-            --force_overwrite
 
 ## Running each function separately
 
