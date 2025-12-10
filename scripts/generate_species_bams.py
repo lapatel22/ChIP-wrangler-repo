@@ -21,7 +21,7 @@ def generate_species_bams(
     output_dir = Path(output_dir)
 
     input_dir = output_dir / "concat_align" / "dedup_out"
-    output_dir = output_dir / "bams_chr_sep"
+    output_splitbams = output_dir / "bams_chr_sep"
     filtered_dir = output_dir / "filtered_bams"
 
     bamutil_path = "bam"       # bamUtil binary
@@ -65,10 +65,10 @@ def generate_species_bams(
     def split_bam(input_bam):
         input_bam = Path(input_bam)
         base = input_bam.stem.replace(".filtered", "")
-        output_prefix = output_dir / f"{base}."
-        log_file = output_dir / f"{base}.splitting.log"
+        output_prefix = output_splitbams / f"{base}."
+        log_file = output_splitbams / f"{base}.splitting.log"
 
-        sentinel_chrX = output_dir / f"{base}.chrX.bam"
+        sentinel_chrX = output_splitbams / f"{base}.chrX.bam"
         if sentinel_chrX.exists() and not force_overwrite:
             return f"Skipping {base} (already split)"
 
@@ -93,7 +93,7 @@ def generate_species_bams(
 
     for bam in filtered_bams:
         base = bam.stem.replace(".filtered", "")
-        for bad_bam in output_dir.glob(f"{base}.chr*"):
+        for bad_bam in output_splitbams.glob(f"{base}.chr*"):
             if any(x in bad_bam.name for x in ["_alt", "Un", "random", "chrM"]):
                 # dont print the unwanted contigs! too many!
         #        print(f"Removing {bad_bam.name} (unwanted contig)")
@@ -117,7 +117,7 @@ def generate_species_bams(
         path.mkdir(parents=True, exist_ok=True)
 
     # spike chromosome folder
-    spike_chr_dir = output_dir / "spike_bams_chr_sep"
+    spike_chr_dir = output_splitbams / "spike_bams_chr_sep"
     spike_chr_dir.mkdir(exist_ok=True)
 
     # Merge per species
@@ -126,7 +126,7 @@ def generate_species_bams(
 
         # Move spike-in chromosome BAMs
         for species in [spike1_species, spike2_species] if spike2_present else [spike1_species]:
-            for f in output_dir.glob(f"{base}.chr*_{species}.bam"):
+            for f in output_splitbams.glob(f"{base}.chr*_{species}.bam"):
                 f.rename(spike_chr_dir / f.name)
 
         outputs = {
@@ -155,7 +155,7 @@ def generate_species_bams(
                            [str(f) for f in spike_files], check=True)
 
         # Merge target species
-        target_files = sorted(output_dir.glob(f"{base}.chr*.bam"))
+        target_files = sorted(output_splitbams.glob(f"{base}.chr*.bam"))
         out_bam = outputs[target_species]
         if out_bam.exists() and not force_overwrite:
             print(f"Skipping {out_bam.name} (already exists)")

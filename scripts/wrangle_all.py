@@ -56,6 +56,8 @@ def wrangle_all(
     target_species = target_genome
     spike1_species = spike_genomes[0] if len(spike_genomes) > 0 else None
     spike2_species = spike_genomes[1] if len(spike_genomes) > 1 else None
+    genome_names = [target_genome] + spike_genomes
+    genome_dirs = {genome: output_dir / f"{genome}_data" for genome in genome_names}
 
     # -------------------------------------------
     # STEP 0: Decide whether to build custom genome
@@ -64,16 +66,18 @@ def wrangle_all(
     if indexed_genome_dir:
         print("STEP 0: Skipping custom genome creation (using pre-indexed genome)")
         genome_dir = Path(indexed_genome_dir)
-        genome_names = [target_genome] + spike_genomes
     else:
         print("STEP 0: Preprocessing (custom genome creation)")
-        genome_dir, genome_names = pp.create_custom_genome(
+        genome_dir = pp.create_custom_genome(
             output_dir=output_dir,
             target_genome=target_genome,
             target_fasta=target_fasta,
             spike_genomes=spike_genomes,
             spike_fastas=spike_fastas
         )
+
+        # genome_names was formerly returned, but you already know the parts:
+        genome_names = [target_genome] + spike_genomes
 
     # -------------------------------------------
     # STEP 1: Trimming
@@ -183,8 +187,7 @@ def wrangle_all(
     # -------------------------------------------
 
     print("STEP 7: Normalize tag directories")
-
-    genome_dirs = {genome: output_dir / f"{genome}_data" for genome in genome_names}
+    
 
     norm.normalize_tagdirs(
         metadata_file=save_file,

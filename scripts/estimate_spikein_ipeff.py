@@ -19,7 +19,6 @@ def estimate_spikein(
     hist_bin: int = 25,
     start_position: int = -100,
     end_position: int = 700,
-    genome_dirs: list = None,
     save_file: Path = None,
     force_overwrite: bool = False
 ):
@@ -48,28 +47,25 @@ def estimate_spikein(
     )
 
     # --- Step 2: Read histograms & metadata ---
-    dm6_hist_file = output_dir / f"{spike1_species}_data/{spike1_species}_histograms/hist_{SNR_region}_{spike1_species}.txt"
-    sac3_hist_file = output_dir / f"{spike2_species}_data/{spike2_species}_histograms/hist_{SNR_region}_{spike2_species}.txt"
+    spike1_hist_file = output_dir / f"{spike1_species}_data/{spike1_species}_histograms/hist_{SNR_region}_{spike1_species}.txt"
+    spike2_hist_file = output_dir / f"{spike2_species}_data/{spike2_species}_histograms/hist_{SNR_region}_{spike2_species}.txt"
 
-    hist_dm6 = pd.read_csv(dm6_hist_file, sep="\t", comment="#")
-    hist_sac3 = pd.read_csv(sac3_hist_file, sep="\t", comment="#")
+    hist_spike1 = pd.read_csv(spike1_hist_file, sep="\t", comment="#")
+    hist_spike2 = pd.read_csv(spike2_hist_file, sep="\t", comment="#")
     seqstats = pd.read_csv(metadata_file, sep="\t")
 
     # --- Step 3: Process histograms & compute AUC ---
-    dm6_signal = compute_auc(process_histograms(hist_dm6, spike1_species),
-                             start_position=start_position,
-                             end_position=end_position)
-    sac3_signal = compute_auc(process_histograms(hist_sac3, spike2_species),
-                              start_position=start_position,
-                              end_position=end_position)
-    dm6_signal["library.ID"] = dm6_signal["library.ID"].apply(lambda x: Path(x).name)
-    sac3_signal["library.ID"] = sac3_signal["library.ID"].apply(lambda x: Path(x).name)
-
-    print("dm6_signal library.IDs:", dm6_signal['library.ID'].tolist())
-    print("sac3_signal library.IDs:", sac3_signal['library.ID'].tolist())
+    spike1_signal = compute_auc(process_histograms(hist_spike1, spike1_species),
+                                start_position=start_position,
+                                end_position=end_position)
+    spike2_signal = compute_auc(process_histograms(hist_spike2, spike2_species),
+                                start_position=start_position,
+                                end_position=end_position)
 
     # --- Step 4: Merge with metadata & normalize ---
-    seqstats_norm = normalize_and_merge(seqstats, dm6_signal, sac3_signal)
+    seqstats_norm = normalize_and_merge(seqstats, spike1_signal, spike2_signal,
+                                        spike1_species=spike1_species,
+                                        spike2_species=spike2_species)
 
     # --- Step 5: Always save ---
     try:
@@ -85,7 +81,6 @@ def estimate_spikein(
 
     return seqstats_norm
 
-    
 # ======================== Core Functions ========================
 
 def make_tagdirs(
@@ -104,7 +99,7 @@ def make_tagdirs(
     Make HOMER tag directories and generate TSS histograms for spike-in species.
     """
     spike_names = [spike1_species, spike2_species]
-    homer_genome_dict = {spike1_species: "dm6", spike2_species: "sacCer3"}  ### LAUREN FIX TO BE GENERAL
+    homer_genome_dict = {spike1_species: spike1_species, spike2_species: spike2_species}
 
     for spike in spike_names:
         aligned_dir = output_dir / f"{spike}_data" / f"{spike}_aligned"
@@ -131,7 +126,7 @@ def make_tagdirs(
                 ]
                 print(f"Creating tag directory for {base} ({spike})")
                 subprocess.run(cmd, check=True)
-            else: 
+            else:
                 print(f"Skipping existing tagdir: {tagdir}")
 
         # Create histogram
@@ -150,24 +145,16 @@ def make_tagdirs(
                 print(f"Skipping existing histogram: {output_hist}")
 
 def process_histograms(df: pd.DataFrame, species: str):
-    """Convert HOMER histogram to long format and parse sample metadata."""
+    """Convert HOMER histogram to long format and parse sample metadata from metadata file."""
     df = df.rename(columns={df.columns[0]: "Distance_from_tss"})
     df.columns = (
         df.columns
-        .str.replace(r"\.(dm6|sacCer3|hg38)-tagdir.*$", "", regex=True) ### LAUREN FIX TO BE GENERAL
+        .str.replace(rf"\.{species}-tagdir.*$", "", regex=True)
         .str.replace(r"\.Coverage$", "", regex=True)
         .str.replace(r"\.+", "_", regex=True)
     )
     df_long = df.melt(id_vars="Distance_from_tss", var_name="Sample", value_name="Coverage")
     df_long["Sample"] = df_long["Sample"].str.replace(r"\..*$", "", regex=True)
-
-    # Extract sample metadata (naive split)
-    parts = df_long["Sample"].str.split("_", expand=True) ### LAUREN FIX TO BE GENERAL FROM METADATA
-    df_long["cell_type"] = parts[0]
-    df_long["treatment"] = parts[1] if parts.shape[1] > 1 else "unknown"
-    df_long["timepoint"] = parts[2] if parts.shape[1] > 2 else "unknown"
-    df_long["biorep"] = parts[3] if parts.shape[1] > 3 else "unknown"
-    df_long["antibody"] = parts[4] if parts.shape[1] > 4 else "unknown"
 
     print(f"[{species}] Parsed {df_long['Sample'].nunique()} samples")
     return df_long
@@ -185,10 +172,11 @@ def compute_auc(df: pd.DataFrame, start_position=-100, end_position=700):
         auc_list.append({"library.ID": sample, "AUC_peaks": auc})
     return pd.DataFrame(auc_list)
 
-
 def normalize_and_merge(seqstats, 
-                        dm6_signal, 
-                        sac3_signal):
+                        spike1_signal, 
+                        spike2_signal,
+                        spike1_species,
+                        spike2_species):
     """
     Merge metadata + per-genome AUC signal data, harmonize IDs, 
     compute IP efficiency using automatic Input mapping,
@@ -203,93 +191,96 @@ def normalize_and_merge(seqstats,
     # Clean up library.IDs
     # -------------------------
     seqstats["library.ID"] = seqstats["library.ID"].astype(str).str.strip()
-    dm6_signal["library.ID"] = dm6_signal["library.ID"].astype(str).apply(lambda x: Path(x).name)
-    sac3_signal["library.ID"] = sac3_signal["library.ID"].astype(str).apply(lambda x: Path(x).name)
+    spike1_signal["library.ID"] = spike1_signal["library.ID"].astype(str).apply(lambda x: Path(x).name)
+    spike2_signal["library.ID"] = spike2_signal["library.ID"].astype(str).apply(lambda x: Path(x).name)
 
     # -------------------------
     # Merge AUC signals
     # -------------------------
-    seqstats = seqstats.merge(dm6_signal, on="library.ID", how="left", suffixes=("", "_dm6"))
-    seqstats = seqstats.merge(sac3_signal, on="library.ID", how="left", suffixes=("", "_sacCer3"))
+    seqstats = seqstats.merge(spike1_signal, on="library.ID", how="left", suffixes=("", f"_{spike1_species}"))
+    seqstats = seqstats.merge(spike2_signal, on="library.ID", how="left", suffixes=("", f"_{spike2_species}"))
 
-    # Rename AUC columns
+    # Rename AUC columns to standardized spike-in names
     seqstats = seqstats.rename(columns={
-        "AUC_peaks": "fly_K9ac_signal",
-        "AUC_peaks_sacCer3": "yeast_K9ac_signal"
+        "AUC_peaks": f"{spike1_species}_signal",
+        f"AUC_peaks_{spike2_species}": f"{spike2_species}_signal"
     })
+
+    # -------------------------
+    # Clean IP and Condition columns
+    # -------------------------
+    seqstats["IP"] = seqstats["IP"].astype(str).str.lower().str.strip()
+    seqstats["Condition"] = seqstats["Condition"].astype(str).str.strip()
 
     # -------------------------
     # Automatic Input mapping
     # -------------------------
-    seqstats["IP"] = seqstats["IP"].astype(str).str.lower()
-    if "Condition" not in seqstats.columns:
-        seqstats["Condition"] = "All"  # fallback if no Condition column
-
-    fly_input_map = (
-        seqstats[seqstats["IP"] == "input"]
-        .groupby("Condition")["fly_K9ac_signal"]   ### LAUREN FIX TO BE GENERAL
+    spike1_input_map = (
+        seqstats.loc[seqstats["IP"] == "input", [f"{spike1_species}_signal", "Condition"]]
+        .groupby("Condition")[f"{spike1_species}_signal"]
         .mean()
         .to_dict()
     )
-    yeast_input_map = (
-        seqstats[seqstats["IP"] == "input"]
-        .groupby("Condition")["yeast_K9ac_signal"] ### LAUREN FIX TO BE GENERAL
+    spike2_input_map = (
+        seqstats.loc[seqstats["IP"] == "input", [f"{spike2_species}_signal", "Condition"]]
+        .groupby("Condition")[f"{spike2_species}_signal"]
         .mean()
         .to_dict()
     )
 
-    seqstats["fly_input_value"] = seqstats["Condition"].map(fly_input_map) ### LAUREN FIX TO BE GENERAL
-    seqstats["yeast_input_value"] = seqstats["Condition"].map(yeast_input_map) ### LAUREN FIX TO BE GENERAL
+    # Map input values to all samples; fill missing with 0 (for subtraction) or 1 (for division)
+    seqstats[f"{spike1_species}_input_value"] = seqstats["Condition"].map(spike1_input_map).fillna(0)
+    seqstats[f"{spike2_species}_input_value"] = seqstats["Condition"].map(spike2_input_map).fillna(1)
 
     # -------------------------
     # Compute IP efficiency
     # -------------------------
-    seqstats["fly_ip_efficiency"] = seqstats["fly_K9ac_signal"] - seqstats["fly_input_value"] ### LAUREN FIX TO BE GENERAL
-    seqstats["yeast_ip_efficiency"] = seqstats["yeast_K9ac_signal"] / seqstats["yeast_input_value"] ### LAUREN FIX TO BE GENERAL
+    seqstats[f"{spike1_species}_ip_efficiency"] = seqstats[f"{spike1_species}_signal"] - seqstats[f"{spike1_species}_input_value"]
+    seqstats[f"{spike2_species}_ip_efficiency"] = seqstats[f"{spike2_species}_signal"] / seqstats[f"{spike2_species}_input_value"]
 
     # -------------------------
-    # Normalize within antibody groups using control samples
+    # Normalize within IP (antibody) groups using Control column
     # -------------------------
-    seqstats["antibody"] = seqstats["library.ID"].str.extract(r"_(H3[^_]+)_")[0]   ### LAUREN FIX TO BE GENERAL
+    # Here "antibody" is taken from IP column
+    seqstats["antibody"] = seqstats["IP"]
 
     for ab, group in seqstats.groupby("antibody"):
-        print(f"\nProcessing antibody group: {ab}")
+        print(f"\nProcessing IP group: {ab}")
 
         # Identify control samples from Control column
         control_mask = group["Control"].astype(str).str.upper() == "TRUE"
         control_samples = group.loc[control_mask]
 
         if control_mask.any():
-            fly_ctrl_mean = np.nanmean(control_samples["fly_ip_efficiency"]) ### LAUREN FIX TO BE GENERAL
-            yeast_ctrl_mean = np.nanmean(control_samples["yeast_ip_efficiency"]) ### LAUREN FIX TO BE GENERAL
-            print(f"{ab}: Using Control column TRUE samples as control.")
+            spike1_ctrl_mean = np.nanmean(control_samples[f"{spike1_species}_ip_efficiency"])
+            spike2_ctrl_mean = np.nanmean(control_samples[f"{spike2_species}_ip_efficiency"])
+            print(f"{ab}: Using Control==TRUE samples for normalization.")
         else:
-            fly_ctrl_mean = np.nanmean(group["fly_ip_efficiency"]) ### LAUREN FIX TO BE GENERAL
-            yeast_ctrl_mean = np.nanmean(group["yeast_ip_efficiency"]) ### LAUREN FIX TO BE GENERAL
+            spike1_ctrl_mean = np.nanmean(group[f"{spike1_species}_ip_efficiency"])
+            spike2_ctrl_mean = np.nanmean(group[f"{spike2_species}_ip_efficiency"])
             print(f"{ab}: No Control==TRUE samples found. Using antibody group average.")
 
         # Safety check
-        if fly_ctrl_mean == 0 or yeast_ctrl_mean == 0:
+        if spike1_ctrl_mean == 0 or spike2_ctrl_mean == 0:
             print(f"{ab}: Warning: control mean is zero, skipping normalization.")
             continue
 
         # Apply normalization
-        seqstats.loc[group.index, "fly_ip_efficiency_norm"] = group["fly_ip_efficiency"] / fly_ctrl_mean ### LAUREN FIX TO BE GENERAL
-        seqstats.loc[group.index, "yeast_ip_efficiency_norm"] = group["yeast_ip_efficiency"] / yeast_ctrl_mean ### LAUREN FIX TO BE GENERAL
-
-        print(f"{ab}: Normalized fly/yeast IP efficiencies (fly_ctrl_mean={fly_ctrl_mean:.4f}, yeast_ctrl_mean={yeast_ctrl_mean:.4f})")
+        seqstats.loc[group.index, f"{spike1_species}_ip_efficiency_norm"] = group[f"{spike1_species}_ip_efficiency"] / spike1_ctrl_mean
+        seqstats.loc[group.index, f"{spike2_species}_ip_efficiency_norm"] = group[f"{spike2_species}_ip_efficiency"] / spike2_ctrl_mean
+        print(f"{ab}: Normalized {spike1_species}/{spike2_species} IP efficiencies "
+              f"({spike1_species}_ctrl_mean={spike1_ctrl_mean:.4f}, {spike2_species}_ctrl_mean={spike2_ctrl_mean:.4f})")
 
     # -------------------------
-    # Compute adjusted normalization factors ### LAUREN FIX TO BE GENERAL
+    # Compute adjusted normalization factors
     # -------------------------
-    seqstats["dm6.normfactor.ipeff.adj"] = seqstats["fly_ip_efficiency_norm"] * seqstats.get("dm6 IP/input control averaged", 1)
-    seqstats["sacCer3.normfactor.ipeff.adj"] = seqstats["yeast_ip_efficiency_norm"] * seqstats.get("sac3 IP/input control averaged", 1)
-    seqstats["dual.normfactor.ipeff.adj"] = seqstats[["dm6.normfactor.ipeff.adj", "sacCer3.normfactor.ipeff.adj"]].mean(axis=1)
+    seqstats[f"{spike1_species}.normfactor.ipeff.adj"] = seqstats[f"{spike1_species}_ip_efficiency_norm"] * seqstats.get(f"{spike1_species} IP/input control averaged", 1)
+    seqstats[f"{spike2_species}.normfactor.ipeff.adj"] = seqstats[f"{spike2_species}_ip_efficiency_norm"] * seqstats.get(f"{spike2_species} IP/input control averaged", 1)
+    seqstats["dual.normfactor.ipeff.adj"] = seqstats[[f"{spike1_species}.normfactor.ipeff.adj", f"{spike2_species}.normfactor.ipeff.adj"]].mean(axis=1)
 
     print("Success: Added normalized IP efficiency and adjusted spike-in columns.")
 
     return seqstats
-
 
 # ======================== Main Workflow ========================
 def main():
@@ -306,43 +297,35 @@ def main():
     parser.add_argument("--hist_bin", type=int, default=25)
     parser.add_argument("--start_position", type=int, default=-100)
     parser.add_argument("--end_position", type=int, default=700)
-    parser.add_argument("--force_overwrite", action="store_true", 
-                       help = "Global option to force overwriting of every step" )
+    parser.add_argument("--force_overwrite", action="store_true")
     args = parser.parse_args()
 
     print("=== SCRIPT START ===", flush=True)
 
-    # Path to input metadata
     metadata_file = args.output_dir / "sample_metadata.tsv"
     if not metadata_file.exists():
         raise FileNotFoundError(f"{metadata_file} not found.")
 
-    # Path to output normalized metadata (optional override)
     save_file = args.output_dir / "sample_metadata.norm.tsv"
 
-    # Run the wrapper (always saves internally)
-    print("STEP 6: Estimate spike-in IP efficiency and normalize...", flush=True)
-    try:
-        estimate_spikein(
-            output_dir=args.output_dir,
-            metadata_file=metadata_file,
-            spike1_species=args.spike1_species,
-            spike2_species=args.spike2_species,
-            target_species=args.target_species,
-            SNR_region=args.SNR_region,
-            frag_length=args.frag_length,
-            hist_size=args.hist_size,
-            hist_bin=args.hist_bin,
-            start_position=args.start_position,
-            end_position=args.end_position,
-            save_file=save_file,
-            force_overwrite=args.force_overwrite
-        )
-    except Exception as e:
-        print("ERROR in estimate_spikein:", e, flush=True)
-        raise
+    estimate_spikein(
+        output_dir=args.output_dir,
+        metadata_file=metadata_file,
+        spike1_species=args.spike1_species,
+        spike2_species=args.spike2_species,
+        target_species=args.target_species,
+        SNR_region=args.SNR_region,
+        frag_length=args.frag_length,
+        hist_size=args.hist_size,
+        hist_bin=args.hist_bin,
+        start_position=args.start_position,
+        end_position=args.end_position,
+        save_file=save_file,
+        force_overwrite=args.force_overwrite
+    )
 
     print("=== SCRIPT END ===", flush=True)
+
 
 if __name__ == "__main__":
     main()

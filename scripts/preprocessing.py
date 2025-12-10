@@ -14,25 +14,28 @@ import sys
 
 # ------------------------- Helper functions -------------------------
 
-def safe_header(header: str, prefix: str) -> str:
-    """Ensure unique, prefix-safe FASTA headers."""
+def safe_header(header: str, suffix: str) -> str:
+    """Append a suffix to FASTA headers (e.g. chr2L_dm6)."""
     header = header.strip()
     if header.startswith(">"):
         header = header[1:]
-    return f">{prefix}_{header}"
+    return f">{header}_{suffix}"
 
-def rewrite_fasta_headers(input_fasta: Path, prefix: str) -> str:
-    """Read FASTA and rewrite headers with prefix."""
+
+def rewrite_fasta_headers(input_fasta: Path, suffix: str) -> str:
+    """Read FASTA and rewrite headers with a genome suffix."""
     out = []
     with open(input_fasta) as f:
         for line in f:
             if line.startswith(">"):
-                out.append(safe_header(line[1:], prefix) + "\n")
+                out.append(safe_header(line[1:], suffix) + "\n")
             else:
                 out.append(line)
     return "".join(out)
 
-def build_combined_genome(target: Path, spikes: list[Path], output_dir: Path) -> Path:
+
+def build_combined_genome(target: Path, spikes: list[Path], spike_genomes: list[str], output_dir: Path) -> Path:
+
     """Combine FASTAs, apply header rules, return combined FASTA path."""
     output_dir.mkdir(parents=True, exist_ok=True)
     combined_fa = output_dir / "combined_genome.fa"
@@ -46,9 +49,9 @@ def build_combined_genome(target: Path, spikes: list[Path], output_dir: Path) ->
 
         # spike-in fastas rewritten
         for i, spike in enumerate(spikes, start=1):
-            prefix = f"spike{i}"
-            print(f"  Adding spike-in: {spike} (prefix={prefix})")
-            out.write(rewrite_fasta_headers(spike, prefix))
+            suffix = spike_genomes[i-1]   # use actual genome name
+            print(f"  Adding spike-in: {spike} (suffix={suffix})")
+            out.write(rewrite_fasta_headers(spike, suffix))
 
     return combined_fa
 
@@ -86,7 +89,8 @@ def create_custom_genome(output_dir, target_genome, target_fasta, spike_genomes=
     combined_fasta = build_combined_genome(
         target=Path(target_fasta).resolve(),
         spikes=spikes_resolved,
-        output_dir=index_dir  # combined genome goes inside the indexed dir
+        spike_genomes=spike_genomes,
+        output_dir=index_dir
     )
 
     # -------------------- BWA index --------------------
