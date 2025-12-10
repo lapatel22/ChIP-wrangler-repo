@@ -165,6 +165,7 @@ As an example, the filled out metadata file `sample_names.tsv` for the experimen
 | fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_3.fastq.gz	| HelaS3_100sync_0inter_1_H3K9ac_3	| 1	| H3K9ac	| 3	| True	| 0inter | 
 | fastqfiles/HelaS3_100sync_0inter_1_input_1.fastq.gz	| HelaS3_100sync_0inter_1_input_1	| 1	| input	| 1	| True	| 0inter | 
 
+ChIP-wrangler will create two additional metadata files, called `sample_metadata.tsv` and `sample_metadata.norm.tsv` during steps `05_get_sequencing_stats` and `06_estimate_spikein_ipeff` that contain the spike-in normalization factors.
     
 Other naming convention rules: 
 
