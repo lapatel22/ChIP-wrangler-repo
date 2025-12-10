@@ -4,7 +4,7 @@
   - [Running `wrangle_all`](#Running-`wrangle_all`)
   - [Running functions separately](#Running-functions-separately)
   - [Choice of controls and sample naming](#Choice-of-controls-and-sample-naming)
-- [An example ChIP-wrangler workflow start to finish](#An-example-ChIP-wrangler-workflow-start-to-finish)
+- [Example ChIP-wrangler workflow start to finish](#Example-ChIP-wrangler-workflow-start-to-finish)
   - [Example dataset](#Example-dataset)
   - [Expected outcomes](#Expected-outcomes)
 - [Detailed workflow](#Detailed-workflow)
@@ -119,13 +119,24 @@ The following packages are not required, but used in the tutorial and example wo
 
 There are a few requirements before running ChIP-wrangler:
 
-1. Genome fasta files in a genome folder named "genomes". In the example tutorial below, the genomes are:
+1. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is an argument: "output_dir".
+
+When you begin, your working directory should look like: 
+
+    $ ls output_dir
+    fastqfiles/ sample_names.tsv genomes/
+
+ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
+
+![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
+
+2. Genome fasta files in a genome folder named "genomes". In the example tutorial below, the genomes are:
 
     dm6_genome.fa  hg38_genome.fa  sacCer3_genome.fa
 
-2. Fastq files in a folder named "fastqfiles" inside the working directory
+3. Fastq files in a folder named "fastqfiles" inside the working directory
 
-3. A metadata file, which lists the samples in the fastq file directory and provides important information about the nature of the experimental desing. There are 5 required columns:
+4. A metadata file, which lists the samples in the fastq file directory and provides important information about the nature of the experimental desing. There are 5 required columns:
 
  - library.ID: sample name (without added R1/R2, file suffixes, etc) that you want to use for downstream analysis
  - file_name: the full path to your fastq files and full file name
@@ -136,7 +147,12 @@ There are a few requirements before running ChIP-wrangler:
 
 User must specify these columns so that ChIP-wrangler knows what samples to use as a reference when normalizing, which samples are inputs, etc.
 
-        sample_names.tsv 
+     sample_names.tsv 
+
+| file.path | library.ID | Biorep |	IP | TechRep |  Control	| Condition |
+|---|---|---|---|---|---|---|
+
+As an example, the filled out metadata file `sample_names.tsv` for the experiment used in the section [Example ChIP-wrangler workflow start to finish](#Example-ChIP-wrangler-workflow-start-to-finish) would look like:
 
 | file.path | library.ID | Biorep |	IP | TechRep |  Control	| Condition |
 |---|---|---|---|---|---|---|
@@ -153,17 +169,6 @@ User must specify these columns so that ChIP-wrangler knows what samples to use 
 Other naming convention rules: 
 
  - No special characters besides "_" "-" or "."
-
-4. A set working directory: ChIP-wrangler involves multiple steps of sample processing, as such organization of the intermediate data is critical. Therefore, in `wrangle_all`, and in each individual processing script, there is an argument: "output_dir".
-
-When you begin, your working directory should look like: 
-
-    $ ls output_dir
-    fastqfiles/ sample_names.tsv genomes/
-
-ChIP-wrangler will build a folder structure from this directory, once all steps are completed it will resemble the tree below:
-
-![image.png](readme_assets/eae5f733-706f-421b-9505-0ed76dcb4658.png)
 
 ### Running Wrangle_all 
 
@@ -224,22 +229,22 @@ Below are the commands that constitute the ChIP-wrangler workflow and would norm
 
 `00_preprocessing.py --target_genome TARGET_NAME --target_fasta TARGET_GENOME.fa --spike_genomes SPIKE1_NAME SPIKE2_NAME --spike_fastas SPIKE1_GENOME.fa SPIKE2_GENOME.fa [--threads int]`
 
-`01_trimming.py [--paired_end TRUE/FALSE] [--threads int]`
+`01_trimming.py --fastq_dir DIR --output_dir DIR [--paired_end TRUE/FALSE] [--threads int] [--force_overwrite]`
 
-`02_alignment.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME [--threads int] [--paired TRUE/FALSE]`
+`02_alignment.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME --genome_dir DIR --output_dir DIR [--threads int] [--paired TRUE/FALSE] [--force_overwrite]`
 
-`03_remove_duplicates.py [--paired TRUE/FALSE] [--umis TRUE/FALSE] [--threads int]`
+`03_remove_duplicates.py --output_dir DIR [--paired TRUE/FALSE] [--umis TRUE/FALSE] [--threads int] [--force_overwrite]`
 
-`04_generate_species_bams.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME [--threads int] [--mapq MAPQ_CUTOFF]`
+`04_generate_species_bams.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME --output_dir DIR [--threads int] [--mapq MAPQ_CUTOFF] [--force_overwrite]`
 
-`05_get_sequencing_stats.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME --metadata SAMPLE_NAMES.TSV [--samtools_path SAMTOOLS_PATH]`
+`05_get_sequencing_stats.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME --metadata SAMPLE_NAMES.TSV --output_dir DIR [--samtools_path SAMTOOLS_PATH]`
 
-`06_estimate_spikein_ipeff.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME [--SNR_region REGION] [--frag_length] 
- [--hist_size int] [--hist_bin int] [--save_file filename] [--force_overwrite] `
+`06_estimate_spikein_ipeff.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME --metadata output_dir/sample_metadata.tsv [--SNR_region REGION] [--frag_length] 
+ [--hist_size int] [--hist_bin int] [--save_file filename] [--threads int] [--force_overwrite]`
 
-`07_normalize_tagdirs.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME [--frag_length int]`
+`07_normalize_tagdirs.py --target_genome TARGET_GENOME --spike_genomes SPIKE1_NAME SPIKE2_NAME [--frag_length int] [--threads int] [--force_overwrite]`
 
-`08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES`
+`08_QC_data.py --target_species TARGET_SPECIES --spike1_species SPIKE1_SPECIES --spike2_species SPIKE2_SPECIES [--force_overwrite]`
 
 Below is an example of real arguments: 
 
@@ -267,7 +272,7 @@ Below is an example of real arguments:
 
 `Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions treatment,control --outprefix deseq_treatment_vs_control`
 
-# An example ChIP-wrangler workflow start to finish
+# Example ChIP-wrangler workflow start to finish
 
 ## Example dataset
 
