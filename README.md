@@ -140,15 +140,14 @@ User must specify these columns so that ChIP-wrangler knows what samples to use 
 
 | file.path | library.ID | Biorep |	IP | TechRep |  Control	| Condition |
 |---|---|---|---|---|---|---|
-| fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_1.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_1 | 1 | H3K9ac | 1 | False | 100inter 
-| fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_2.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_2	| 1	| H3K9ac	| 2	| False	| 100inter
-| fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_3.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_3	| 1	| H3K9ac	| 3	| False	| 100inter
-
-fastqfiles/HelaS3_0sync_100inter_1_input_1.fastq.gz	HelaS3_0sync_100inter_1_input_1	1	input	1	False	100inter
-fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_1.fastq.gz	HelaS3_100sync_0inter_1_H3K9ac_1	1	H3K9ac	1	True	0inter
-fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_2.fastq.gz	HelaS3_100sync_0inter_1_H3K9ac_2	1	H3K9ac	2	True	0inter
-fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_3.fastq.gz	HelaS3_100sync_0inter_1_H3K9ac_3	1	H3K9ac	3	True	0inter
-fastqfiles/HelaS3_100sync_0inter_1_input_1.fastq.gz	HelaS3_100sync_0inter_1_input_1	1	input	1	True	0inter
+| fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_1.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_1 | 1 | H3K9ac | 1 | False | 100inter | 
+| fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_2.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_2	| 1	| H3K9ac	| 2	| False	| 100inter | 
+| fastqfiles/HelaS3_0sync_100inter_1_H3K9ac_3.fastq.gz | HelaS3_0sync_100inter_1_H3K9ac_3	| 1	| H3K9ac	| 3	| False	| 100inter | 
+| fastqfiles/HelaS3_0sync_100inter_1_input_1.fastq.gz | HelaS3_0sync_100inter_1_input_1	| 1	| input	| 1	| False	| 100inter | 
+| fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_1.fastq.gz | HelaS3_100sync_0inter_1_H3K9ac_1	| 1	| H3K9ac	| 1	| True	| 0inter | 
+| fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_2.fastq.gz	| HelaS3_100sync_0inter_1_H3K9ac_2	| 1	| H3K9ac	| 2	| True	| 0inter | 
+| fastqfiles/HelaS3_100sync_0inter_1_H3K9ac_3.fastq.gz	| HelaS3_100sync_0inter_1_H3K9ac_3	| 1	| H3K9ac	| 3	| True	| 0inter | 
+| fastqfiles/HelaS3_100sync_0inter_1_input_1.fastq.gz	| HelaS3_100sync_0inter_1_input_1	| 1	| input	| 1	| True	| 0inter | 
 
     
 Other naming convention rules: 
