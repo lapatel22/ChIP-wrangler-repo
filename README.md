@@ -228,113 +228,113 @@ Other optional arguments include:
 
 Below are the commands that constitute the ChIP-wrangler workflow and would normally be executed by `wrangle_all`. Required arguments are shown first, optional arguments are in brackets.  This assumes a directory structure as detailed above and that the user is in the base directory. If necessary, the user can specify the path to the base directory instead.
 
-`00_preprocessing.py 
+    preprocessing.py 
     --target_genome TARGET_NAME 
     --target_fasta TARGET_GENOME.fa 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --spike_fastas SPIKE1_GENOME.fa SPIKE2_GENOME.fa 
-    [--threads int]`
+    [--threads int]
 
-`01_trimming.py 
+    trimming.py 
     --fastq_dir DIR --output_dir DIR 
     [--paired_end TRUE/FALSE] 
-    [--threads int] [--force_overwrite]`
+    [--threads int] [--force_overwrite]
 
-`02_alignment.py 
+    alignment.py 
     --target_genome TARGET_GENOME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --genome_dir DIR --output_dir DIR 
     [--threads int] [--paired TRUE/FALSE] 
-    [--force_overwrite]`
+    [--force_overwrite]
 
-`03_remove_duplicates.py 
+    remove_duplicates.py 
     --output_dir DIR 
     [--paired TRUE/FALSE] [--umis TRUE/FALSE] 
-    [--threads int] [--force_overwrite]`
+    [--threads int] [--force_overwrite]
 
-`04_generate_species_bams.py 
+    generate_species_bams.py 
     --target_genome TARGET_GENOME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --output_dir DIR [--threads int] 
-    [--mapq MAPQ_CUTOFF] [--force_overwrite]`
+    [--mapq MAPQ_CUTOFF] [--force_overwrite]
 
-`05_get_sequencing_stats.py 
+    get_sequencing_stats.py 
     --target_genome TARGET_GENOME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --metadata SAMPLE_NAMES.TSV --output_dir DIR 
-    [--samtools_path SAMTOOLS_PATH]`
+    [--samtools_path SAMTOOLS_PATH]
 
-`06_estimate_spikein_ipeff.py 
+    estimate_spikein_ipeff.py 
     --target_genome TARGET_GENOME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
     --metadata output_dir/sample_metadata.tsv 
     [--SNR_region REGION] [--frag_length] 
     [--hist_size int] [--hist_bin int] 
-    [--save_file filename] [--threads int] [--force_overwrite]`
+    [--save_file filename] [--threads int] [--force_overwrite]
 
-`07_normalize_tagdirs.py 
+    normalize_tagdirs.py 
     --target_genome TARGET_GENOME 
     --spike_genomes SPIKE1_NAME SPIKE2_NAME 
-    [--frag_length int] [--threads int] [--force_overwrite]`
+    [--frag_length int] [--threads int] [--force_overwrite]
 
-`08_QC_data.py 
+    QC_data.py 
     --target_species TARGET_SPECIES 
     --spike1_species SPIKE1_SPECIES 
     --spike2_species SPIKE2_SPECIES 
-    [--force_overwrite]`
+    [--force_overwrite]
 
 Below is an example of real arguments: 
 
-`00_preprocessing.py 
+    preprocessing.py 
     --target_genome hg38 
     --target_fasta hg38_genome.fa 
     --spike_genomes dm6 sacCer3 
-    --spike_fastas dm6_genome.fa sacCer3_genome.fa`
+    --spike_fastas dm6_genome.fa sacCer3_genome.fa
 
-`01_trimming.py 
-    --paired_end FALSE --threads 16`
+    trimming.py 
+    --paired_end FALSE --threads 16
 
-`02_alignment.py 
+    alignment.py 
     --target_genome hg38 
     --spike_genomes dm6 sacCer3 
     --threads 16 
-    --paired FALSE`
+    --paired FALSE
 
-`03_remove_duplicates.py 
+    remove_duplicates.py 
     --paired FALSE 
     --umis FALSE 
-    --threads 16`
+    --threads 16
 
-`04_generate_species_bams.py 
+    generate_species_bams.py 
     --target_genome hg38
     --spike_genomes dm6 sacCer3 
-    --threads 16 --mapq 50`
+    --threads 16 --mapq 50
 
-`05_get_sequencing_stats.py 
+    get_sequencing_stats.py 
     --target_genome hg38
     --spike_genomes dm6 sacCer3 
-    --metadata sample_names.tsv`
+    --metadata sample_names.tsv
 
-`06_estimate_spikein_snr.py 
+    estimate_spikein_snr.py 
     --target_genome hg38 
     --spike_genomes dm6 sacCer3 
     --SNR_region tss --frag_length 150 
-    --hist_size 4000 --hist_bin 25`
+    --hist_size 4000 --hist_bin 25
 
-`07_normalize_tagdirs.py 
+    normalize_tagdirs.py 
     --target_genome hg38 
-    --spike_genomes dm6 sacCer3`
+    --spike_genomes dm6 sacCer3
 
-`08_QC_data.py 
+    QC_data.py 
     --target_genome hg38 
-    --spike_genomes dm6 sacCer3`
+    --spike_genomes dm6 sacCer3
 
 
 For `wrangle_analysis`:
 
-`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions condition1,condition2 --outprefix deseq_condition1_vs_condition2`
+    Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions condition1,condition2 --outprefix deseq_condition1_vs_condition2
 
-`Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions treatment,control --outprefix deseq_treatment_vs_control`
+    Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions treatment,control --outprefix deseq_treatment_vs_control
 
 # Example ChIP-wrangler workflow start to finish
 
