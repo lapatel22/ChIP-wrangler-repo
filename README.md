@@ -250,17 +250,11 @@ In our example:
 
 Output from `wrangle_analysis`
 
-Peak files for each sample meeting the specified conditions: 
+In the target_data folder: 
 
-In our example: 
-
-ls hg38_data/
-HelaS3_0sync_100inter_1_H3K9ac_1.regions.txt <br>  
-HelaS3_0sync_100inter_1_H3K9ac_2.regions.txt <br>  
-HelaS3_0sync_100inter_1_H3K9ac_3.regions.txt <br>  
-HelaS3_100sync_0inter_1_H3K9ac_1.regions.txt <br>  
-HelaS3_100sync_0inter_1_H3K9ac_2.regions.txt <br>   
-HelaS3_100sync_0inter_1_H3K9ac_3.regions.txt <br>  
+- Peak files for each sample meeting the specified conditions
+- Merged peak file for the set of specified conditions: named `merged_peaks_condA_vs_condB.txt`
+- Raw counts at the merged peak file used for DESeq2: named `raw_counts_from_merged_condA_condB.tsv`
 
 4 files from the DESeq2 analysis:
 DESeq2_pipeline.log  <br>                   
