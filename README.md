@@ -235,7 +235,7 @@ The one liner:
     --target_genome TARGET_NAME 
     --style histone/factor
     --conditions conditionA,conditionB
-    --spike_genomes SPIKE1_NAME SPIKE2_NAME 
+    --spike_genomes SPIKE1_NAME,SPIKE2_NAME 
 
 In our example:
 
@@ -245,7 +245,7 @@ In our example:
     --target_genome hg38 
     --style histone 
     --conditions 0inter,100inter 
-    --spike_genomes dm6 sacCer3
+    --spike_genomes dm6,sacCer3
 
 
 Output from `wrangle_analysis`
