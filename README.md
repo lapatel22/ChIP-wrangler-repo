@@ -226,25 +226,57 @@ Other optional arguments include:
 
 ## Running `Wrangle_analysis`
 
-Add details on `wrangle_anlaysis` wrapper function here.
 
 The one liner: 
 
     python scripts/wrangle_analysis.py 
     --output_dir . 
     --metadata sample_names.tsv 
-    --target genome_name 
+    --target_genome TARGET_NAME 
     --style histone/factor
     --conditions conditionA,conditionB
+    --spike_genomes SPIKE1_NAME SPIKE2_NAME 
 
 In our example:
 
     python scripts/wrangle_analysis.py 
     --output_dir . 
     --metadata sample_names.tsv 
-    --target hg38 
+    --target_genome hg38 
     --style histone 
-    --conditions 0inter,100inter
+    --conditions 0inter,100inter 
+    --spike_genomes dm6 sacCer3
+
+
+Output from `wrangle_analysis`
+
+Peak files for each sample meeting the specified conditions: 
+
+In our example: 
+
+ls hg38_data/
+HelaS3_0sync_100inter_1_H3K9ac_1.regions.txt <br>  
+HelaS3_0sync_100inter_1_H3K9ac_2.regions.txt <br>  
+HelaS3_0sync_100inter_1_H3K9ac_3.regions.txt <br>  
+HelaS3_100sync_0inter_1_H3K9ac_1.regions.txt <br>  
+HelaS3_100sync_0inter_1_H3K9ac_2.regions.txt <br>   
+HelaS3_100sync_0inter_1_H3K9ac_3.regions.txt <br>  
+
+4 files from the DESeq2 analysis:
+DESeq2_pipeline.log  <br>                   
+hg38_DESeq2_results_DESeq2_significant_summary.tsv <br>      
+hg38_DESeq2_results_DESeq2_shrunken.tsv <br>      
+hg38_DESeq2_results_DESeq2.tsv
+
+The log file contains:
+
+  - Shrinkage coefficient: condition_100inter_vs_0inter
+  - Default DESeq2 size factors
+  - Custom size factors to be used for spike-in normalization
+  - Significant UP peaks: from shruken Log2FC > 1 and padj < 0.05
+  - Significant DOWN peaks: from shruken Log2FC < -1 and padj < 0.05
+  - If successful, will output: DESeq2 finished successfully (or errors/warnings from DESeq2 if present)
+
 
 ## Running each function separately
 
