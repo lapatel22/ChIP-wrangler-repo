@@ -9,14 +9,33 @@ from create_counts_matrix import create_counts_matrix
 
 ### helper function to run the R script in the python wrapper #### 
 
+
+### Note: adding a way to check where the R script is based on python scripts ###
+# need to add this variable, which finds the python scripts, then strip out the actual python file, and use this as a variable when calling R script
+import os
+
+def get_Rscript_directory():
+
+    script_path = os.path.realpath(__file__)
+    script_dir = os.path.dirname(script_path)
+    return script_dir
+
+print(f"Script directory: {get_Rscript_directory()}")
+
+#######
+
 def run_deseq2_with_chipwrangler(
-    r_script: Path,
-    counts_tsv: Path,
-    metadata_tsv: Path,
-    conditions: str,
-    outprefix: Path,
-    spike_genomes: str
+    r_script: Path = None,
+    counts_tsv: Path = None,
+    metadata_tsv: Path = None,
+    conditions: str = "",
+    outprefix: Path = None,
+    spike_genomes: list[str] = []
 ):
+    # Use your helper if r_script is not provided
+    if r_script is None:
+        r_script = Path(get_Rscript_directory()) / "deseq2_with_chipwrangler.R"
+        
     """
     Run DESeq2 + ChIP-wrangler R script via Rscript.
     """
@@ -27,9 +46,8 @@ def run_deseq2_with_chipwrangler(
         "--counts", str(counts_tsv),
         "--metadata", str(metadata_tsv),
         "--conditions", conditions,
-        "--spike_genomes", spike_genomes,
         "--outprefix", str(outprefix)
-    ]
+    ] + ["--spike_genomes"] + spike_genomes
 
     print("Running DESeq2:")
     print("CMD:", " ".join(cmd))
@@ -57,9 +75,10 @@ def main():
 
     # Options for DESeq2
     parser.add_argument("--conditions", required=True)
-    parser.add_argument("--r_script", default="scripts/deseq2_with_chipwrangler.R")
-    parser.add_argument("--spike_genomes", required=True,
-    help="Comma-separated list of spike-in species (1 or 2)"
+    parser.add_argument(
+    "--r_script", default=Path(get_Rscript_directory()) /"deseq2_with_chipwrangler.R",)
+    parser.add_argument("--spike_genomes", required=True, nargs="+",
+    help="List of spike-in species (1 or 2), space-separated"
 )
 
     parser.add_argument("--force_overwrite", action="store_true")
@@ -108,7 +127,7 @@ def main():
 
     print("\nSTEP 3: Running DESeq2\n")
     run_deseq2_with_chipwrangler(
-        r_script=Path(args.r_script),
+        r_script=Path(args.r_script),  # this can still override the default
         counts_tsv=counts_matrix,
         metadata_tsv=Path(args.metadata),
         conditions=args.conditions,
