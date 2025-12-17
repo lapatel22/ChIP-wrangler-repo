@@ -257,10 +257,11 @@ In the target_data folder:
 - Raw counts at the merged peak file used for DESeq2: named `raw_counts_from_merged_condA_condB.tsv`
 
 4 files from the DESeq2 analysis:
-DESeq2_pipeline.log  <br>                   
-hg38_DESeq2_results_DESeq2_significant_summary.tsv <br>      
-hg38_DESeq2_results_DESeq2_shrunken.tsv <br>      
-hg38_DESeq2_results_DESeq2.tsv
+
+- DESeq2_pipeline.log: log file
+- target_DESeq2_results_DESeq2.tsv: Log2FC and padj values
+- target_DESeq2_results_DESeq2_shrunken.tsv: Shrunken Log2FC and padj values (Default apeglm shrinkage)
+- target_DESeq2_results_DESeq2_significant_summary.tsv: Number of peaks significantly up/down
 
 The log file contains:
 
