@@ -9,10 +9,10 @@ import numpy as np
 
 def estimate_spikein(
     output_dir: Path = None,
-    metadata_file: Path = None,
-    target_species: str = None,
-    spike1_species: str=None,
-    spike2_species: str=None,
+    metadata: Path = None,
+    target_genome: str = None,
+    spike1_genome: str=None,
+    spike2_genome: str=None,
     SNR_region: str = "tss",
     frag_length: int = 150,
     hist_size: int = 4000,
@@ -27,8 +27,8 @@ def estimate_spikein(
     else:
         output_dir = Path(output_dir)
 
-    if metadata_file is None:
-        metadata_file = output_dir / "sample_metadata.tsv"
+    if metadata is None:
+        metadata = output_dir / "sample_metadata.tsv"
 
     if save_file is None:
         save_file = output_dir / "sample_metadata.norm.tsv"
@@ -36,9 +36,9 @@ def estimate_spikein(
     # --- Step 1: tagdirs & histograms ---
     make_tagdirs(
         output_dir=output_dir,
-        spike1_species=spike1_species,
-        spike2_species=spike2_species,
-        target_species=target_species,
+        spike1_genome=spike1_genome,
+        spike2_genome=spike2_genome,
+        target_genome=target_genome,
         SNR_region=SNR_region,
         frag_length=frag_length,
         hist_size=hist_size,
@@ -47,25 +47,25 @@ def estimate_spikein(
     )
 
     # --- Step 2: Read histograms & metadata ---
-    spike1_hist_file = output_dir / f"{spike1_species}_data/{spike1_species}_histograms/hist_{SNR_region}_{spike1_species}.txt"
-    spike2_hist_file = output_dir / f"{spike2_species}_data/{spike2_species}_histograms/hist_{SNR_region}_{spike2_species}.txt"
+    spike1_hist_file = output_dir / f"{spike1_genome}_data/{spike1_genome}_histograms/hist_{SNR_region}_{spike1_genome}.txt"
+    spike2_hist_file = output_dir / f"{spike2_genome}_data/{spike2_genome}_histograms/hist_{SNR_region}_{spike2_genome}.txt"
 
     hist_spike1 = pd.read_csv(spike1_hist_file, sep="\t", comment="#")
     hist_spike2 = pd.read_csv(spike2_hist_file, sep="\t", comment="#")
-    seqstats = pd.read_csv(metadata_file, sep="\t")
+    seqstats = pd.read_csv(metadata, sep="\t")
 
     # --- Step 3: Process histograms & compute AUC ---
-    spike1_signal = compute_auc(process_histograms(hist_spike1, spike1_species),
+    spike1_signal = compute_auc(process_histograms(hist_spike1, spike1_genome),
                                 start_position=start_position,
                                 end_position=end_position)
-    spike2_signal = compute_auc(process_histograms(hist_spike2, spike2_species),
+    spike2_signal = compute_auc(process_histograms(hist_spike2, spike2_genome),
                                 start_position=start_position,
                                 end_position=end_position)
 
     # --- Step 4: Merge with metadata & normalize ---
     seqstats_norm = normalize_and_merge(seqstats, spike1_signal, spike2_signal,
-                                        spike1_species=spike1_species,
-                                        spike2_species=spike2_species)
+                                        spike1_genome=spike1_genome,
+                                        spike2_genome=spike2_genome)
 
     # --- Step 5: Always save ---
     try:
@@ -85,9 +85,9 @@ def estimate_spikein(
 
 def make_tagdirs(
     output_dir: Path,
-    target_species: str = None,
-    spike1_species: str = None,
-    spike2_species: str = None,
+    target_genome: str = None,
+    spike1_genome: str = None,
+    spike2_genome: str = None,
     SNR_region: str = "tss",
     homer_path: str = "HOMER",
     frag_length: int = 150,
@@ -98,8 +98,8 @@ def make_tagdirs(
     """
     Make HOMER tag directories and generate TSS histograms for spike-in species.
     """
-    spike_names = [spike1_species, spike2_species]
-    homer_genome_dict = {spike1_species: spike1_species, spike2_species: spike2_species}
+    spike_names = [spike1_genome, spike2_genome]
+    homer_genome_dict = {spike1_genome: spike1_genome, spike2_genome: spike2_genome}
 
     for spike in spike_names:
         aligned_dir = output_dir / f"{spike}_data" / f"{spike}_aligned"
@@ -175,8 +175,8 @@ def compute_auc(df: pd.DataFrame, start_position=-100, end_position=700):
 def normalize_and_merge(seqstats, 
                         spike1_signal, 
                         spike2_signal,
-                        spike1_species,
-                        spike2_species):
+                        spike1_genome,
+                        spike2_genome):
     """
     Merge metadata + per-genome AUC signal data, harmonize IDs, 
     compute IP efficiency using automatic Input mapping,
@@ -197,13 +197,13 @@ def normalize_and_merge(seqstats,
     # -------------------------
     # Merge AUC signals
     # -------------------------
-    seqstats = seqstats.merge(spike1_signal, on="library.ID", how="left", suffixes=("", f"_{spike1_species}"))
-    seqstats = seqstats.merge(spike2_signal, on="library.ID", how="left", suffixes=("", f"_{spike2_species}"))
+    seqstats = seqstats.merge(spike1_signal, on="library.ID", how="left", suffixes=("", f"_{spike1_genome}"))
+    seqstats = seqstats.merge(spike2_signal, on="library.ID", how="left", suffixes=("", f"_{spike2_genome}"))
 
     # Rename AUC columns to standardized spike-in names
     seqstats = seqstats.rename(columns={
-        "AUC_peaks": f"{spike1_species}_signal",
-        f"AUC_peaks_{spike2_species}": f"{spike2_species}_signal"
+        "AUC_peaks": f"{spike1_genome}_signal",
+        f"AUC_peaks_{spike2_genome}": f"{spike2_genome}_signal"
     })
 
     # -------------------------
@@ -216,27 +216,27 @@ def normalize_and_merge(seqstats,
     # Automatic Input mapping
     # -------------------------
     spike1_input_map = (
-        seqstats.loc[seqstats["IP"] == "input", [f"{spike1_species}_signal", "Condition"]]
-        .groupby("Condition")[f"{spike1_species}_signal"]
+        seqstats.loc[seqstats["IP"] == "input", [f"{spike1_genome}_signal", "Condition"]]
+        .groupby("Condition")[f"{spike1_genome}_signal"]
         .mean()
         .to_dict()
     )
     spike2_input_map = (
-        seqstats.loc[seqstats["IP"] == "input", [f"{spike2_species}_signal", "Condition"]]
-        .groupby("Condition")[f"{spike2_species}_signal"]
+        seqstats.loc[seqstats["IP"] == "input", [f"{spike2_genome}_signal", "Condition"]]
+        .groupby("Condition")[f"{spike2_genome}_signal"]
         .mean()
         .to_dict()
     )
 
     # Map input values to all samples; fill missing with 0 (for subtraction) or 1 (for division)
-    seqstats[f"{spike1_species}_input_value"] = seqstats["Condition"].map(spike1_input_map).fillna(0)
-    seqstats[f"{spike2_species}_input_value"] = seqstats["Condition"].map(spike2_input_map).fillna(1)
+    seqstats[f"{spike1_genome}_input_value"] = seqstats["Condition"].map(spike1_input_map).fillna(0)
+    seqstats[f"{spike2_genome}_input_value"] = seqstats["Condition"].map(spike2_input_map).fillna(1)
 
     # -------------------------
     # Compute IP efficiency
     # -------------------------
-    seqstats[f"{spike1_species}_ip_efficiency"] = seqstats[f"{spike1_species}_signal"] - seqstats[f"{spike1_species}_input_value"]
-    seqstats[f"{spike2_species}_ip_efficiency"] = seqstats[f"{spike2_species}_signal"] / seqstats[f"{spike2_species}_input_value"]
+    seqstats[f"{spike1_genome}_ip_efficiency"] = seqstats[f"{spike1_genome}_signal"] - seqstats[f"{spike1_genome}_input_value"]
+    seqstats[f"{spike2_genome}_ip_efficiency"] = seqstats[f"{spike2_genome}_signal"] / seqstats[f"{spike2_genome}_input_value"]
 
     # -------------------------
     # Normalize within IP (antibody) groups using Control column
@@ -252,12 +252,12 @@ def normalize_and_merge(seqstats,
         control_samples = group.loc[control_mask]
 
         if control_mask.any():
-            spike1_ctrl_mean = np.nanmean(control_samples[f"{spike1_species}_ip_efficiency"])
-            spike2_ctrl_mean = np.nanmean(control_samples[f"{spike2_species}_ip_efficiency"])
+            spike1_ctrl_mean = np.nanmean(control_samples[f"{spike1_genome}_ip_efficiency"])
+            spike2_ctrl_mean = np.nanmean(control_samples[f"{spike2_genome}_ip_efficiency"])
             print(f"{ab}: Using Control==TRUE samples for normalization.")
         else:
-            spike1_ctrl_mean = np.nanmean(group[f"{spike1_species}_ip_efficiency"])
-            spike2_ctrl_mean = np.nanmean(group[f"{spike2_species}_ip_efficiency"])
+            spike1_ctrl_mean = np.nanmean(group[f"{spike1_genome}_ip_efficiency"])
+            spike2_ctrl_mean = np.nanmean(group[f"{spike2_genome}_ip_efficiency"])
             print(f"{ab}: No Control==TRUE samples found. Using antibody group average.")
 
         # Safety check
@@ -266,17 +266,17 @@ def normalize_and_merge(seqstats,
             continue
 
         # Apply normalization
-        seqstats.loc[group.index, f"{spike1_species}_ip_efficiency_norm"] = group[f"{spike1_species}_ip_efficiency"] / spike1_ctrl_mean
-        seqstats.loc[group.index, f"{spike2_species}_ip_efficiency_norm"] = group[f"{spike2_species}_ip_efficiency"] / spike2_ctrl_mean
-        print(f"{ab}: Normalized {spike1_species}/{spike2_species} IP efficiencies "
-              f"({spike1_species}_ctrl_mean={spike1_ctrl_mean:.4f}, {spike2_species}_ctrl_mean={spike2_ctrl_mean:.4f})")
+        seqstats.loc[group.index, f"{spike1_genome}_ip_efficiency_norm"] = group[f"{spike1_genome}_ip_efficiency"] / spike1_ctrl_mean
+        seqstats.loc[group.index, f"{spike2_genome}_ip_efficiency_norm"] = group[f"{spike2_genome}_ip_efficiency"] / spike2_ctrl_mean
+        print(f"{ab}: Normalized {spike1_genome}/{spike2_genome} IP efficiencies "
+              f"({spike1_genome}_ctrl_mean={spike1_ctrl_mean:.4f}, {spike2_genome}_ctrl_mean={spike2_ctrl_mean:.4f})")
 
     # -------------------------
     # Compute adjusted normalization factors
     # -------------------------
-    seqstats[f"{spike1_species}.normfactor.ipeff.adj"] = seqstats[f"{spike1_species}_ip_efficiency_norm"] * seqstats.get(f"{spike1_species} IP/input control averaged", 1)
-    seqstats[f"{spike2_species}.normfactor.ipeff.adj"] = seqstats[f"{spike2_species}_ip_efficiency_norm"] * seqstats.get(f"{spike2_species} IP/input control averaged", 1)
-    seqstats["dual.normfactor.ipeff.adj"] = seqstats[[f"{spike1_species}.normfactor.ipeff.adj", f"{spike2_species}.normfactor.ipeff.adj"]].mean(axis=1)
+    seqstats[f"{spike1_genome}.normfactor.ipeff.adj"] = seqstats[f"{spike1_genome}_ip_efficiency_norm"] * seqstats.get(f"{spike1_genome} IP/input control averaged", 1)
+    seqstats[f"{spike2_genome}.normfactor.ipeff.adj"] = seqstats[f"{spike2_genome}_ip_efficiency_norm"] * seqstats.get(f"{spike2_genome} IP/input control averaged", 1)
+    seqstats["dual.normfactor.ipeff.adj"] = seqstats[[f"{spike1_genome}.normfactor.ipeff.adj", f"{spike2_genome}.normfactor.ipeff.adj"]].mean(axis=1)
 
     print("Success: Added normalized IP efficiency and adjusted spike-in columns.")
 
@@ -288,9 +288,9 @@ def main():
         description="Estimate spike-in IP efficiency using HOMER tag directories and histograms."
     )
     parser.add_argument("--output_dir", type=Path, default=Path.cwd())
-    parser.add_argument("--target_species", required=True)
-    parser.add_argument("--spike1_species", default="dm6")
-    parser.add_argument("--spike2_species", default="sacCer3")
+    parser.add_argument("--target_genome", required=True)
+    parser.add_argument("--spike1_genome", default="dm6")
+    parser.add_argument("--spike2_genome", default="sacCer3")
     parser.add_argument("--SNR_region", default="tss")
     parser.add_argument("--frag_length", type=int, default=150)
     parser.add_argument("--hist_size", type=int, default=4000)
@@ -302,18 +302,18 @@ def main():
 
     print("=== SCRIPT START ===", flush=True)
 
-    metadata_file = args.output_dir / "sample_metadata.tsv"
-    if not metadata_file.exists():
-        raise FileNotFoundError(f"{metadata_file} not found.")
+    metadata = args.output_dir / "sample_metadata.tsv"
+    if not metadata.exists():
+        raise FileNotFoundError(f"{metadata} not found.")
 
     save_file = args.output_dir / "sample_metadata.norm.tsv"
 
     estimate_spikein(
         output_dir=args.output_dir,
-        metadata_file=metadata_file,
-        spike1_species=args.spike1_species,
-        spike2_species=args.spike2_species,
-        target_species=args.target_species,
+        metadata=metadata,
+        target_genome=args.target_genome,
+        spike1_genome=args.spike1_genome,
+        spike2_genome=args.spike2_genome,
         SNR_region=args.SNR_region,
         frag_length=args.frag_length,
         hist_size=args.hist_size,

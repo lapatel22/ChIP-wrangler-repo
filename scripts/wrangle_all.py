@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 # Make sure the scripts directory is on the PYTHONPATH
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.append(str(SCRIPT_DIR))
 
@@ -36,6 +37,7 @@ def wrangle_all(
     paired_end: bool = False,
     umis: bool = False,
     threads: int = 4,
+    skip_indexing: bool = False,
     skip_trimming: bool = False,
     skip_alignment: bool = False,
     force_overwrite: bool = False
@@ -63,7 +65,7 @@ def wrangle_all(
     # STEP 0: Decide whether to build custom genome
     # -------------------------------------------
 
-    if indexed_genome_dir:
+    if indexed_genome_dir or skip_indexing and not force_overwrite:
         print("STEP 0: Skipping custom genome creation (using pre-indexed genome)")
         genome_dir = Path(indexed_genome_dir)
     else:
@@ -73,7 +75,8 @@ def wrangle_all(
             target_genome=target_genome,
             target_fasta=target_fasta,
             spike_genomes=spike_genomes,
-            spike_fastas=spike_fastas
+            spike_fastas=spike_fastas,
+            force_overwrite=force_overwrite
         )
 
         # genome_names was formerly returned, but you already know the parts:
@@ -169,11 +172,11 @@ def wrangle_all(
     save_file = output_dir / "sample_metadata.norm.tsv"
 
     ipeff.estimate_spikein(
-        metadata_file=output_dir / "sample_metadata.tsv",
+        metadata=output_dir / "sample_metadata.tsv",
         output_dir=output_dir,
-        spike1_species=spike1_species,
-        spike2_species=spike2_species,
-        target_species=target_species,
+        target_genome=target_species,
+        spike1_genome=spike1_species,
+        spike2_genome=spike2_species,
         SNR_region="tss",
         frag_length=150,
         hist_size=4000,
@@ -231,7 +234,8 @@ def main():
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--paired_end", action="store_true")
     parser.add_argument("--umis", action="store_true")
-    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument("--skip_indexing", action="store_true")
     parser.add_argument("--skip_trimming", action="store_true")
     parser.add_argument("--skip_alignment", action="store_true")
     parser.add_argument("--force_overwrite", action="store_true")
@@ -250,6 +254,7 @@ def main():
         paired_end=args.paired_end,
         umis=args.umis,
         threads=args.threads,
+        skip_indexing=args.skip_indexing,
         skip_trimming=args.skip_trimming,
         skip_alignment=args.skip_alignment,
         force_overwrite=args.force_overwrite,

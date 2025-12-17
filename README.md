@@ -224,6 +224,28 @@ Other optional arguments include:
  - paired: if reads are paired end, specifying --paired TRUE will allow ChIP-wrangler to align with paired end settings, otherwise, alignment will be single end.
  - force_overwrite: forces all intermediate files to be overwritten, so  ChIP-wrangler performs every step even if some were previously completed. The default behavior of ChIP-wrangler is to autodetect the output files of each step, and skip if present, for all steps except for calculation of normalization factors. 
 
+## Running `Wrangle_analysis`
+
+Add details on `wrangle_anlaysis` wrapper function here.
+
+The one liner: 
+
+    python scripts/wrangle_analysis.py 
+    --output_dir . 
+    --metadata sample_names.tsv 
+    --target genome_name 
+    --style histone/factor
+    --conditions conditionA,conditionB
+
+In our example:
+
+    python scripts/wrangle_analysis.py 
+    --output_dir . 
+    --metadata sample_names.tsv 
+    --target hg38 
+    --style histone 
+    --conditions 0inter,100inter
+
 ## Running each function separately
 
 Below are the commands that constitute the ChIP-wrangler workflow and would normally be executed by `wrangle_all`. Required arguments are shown first, optional arguments are in brackets.  This assumes a directory structure as detailed above and that the user is in the base directory. If necessary, the user can specify the path to the base directory instead.
@@ -328,7 +350,6 @@ Below is an example of real arguments:
     --target_genome hg38 
     --spike_genomes dm6 sacCer3
 
-
 For `wrangle_analysis`:
 
     Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions condition1,condition2 --outprefix deseq_condition1_vs_condition2
@@ -336,6 +357,8 @@ For `wrangle_analysis`:
     Rscript scripts/10_DESeq2_with_ChIP-wrangler.R --counts counts_raw.txt --metadata sample_metadata.norm.tsv --conditions treatment,control --outprefix deseq_treatment_vs_control
 
 # Example ChIP-wrangler workflow start to finish
+
+NOTE: remove the stuff in this section thats a repeat from wrangle_all, add in the real log file/output data.
 
 ## Example dataset
 

@@ -29,6 +29,7 @@ def generate_species_bams(
     suffix_to_remove = ".nodup.bam"
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    output_splitbams.mkdir(parents=True, exist_ok=True)
     filtered_dir.mkdir(parents=True, exist_ok=True)
 
     # ----------------------- Step 1: Filter low MAPQ -----------------------

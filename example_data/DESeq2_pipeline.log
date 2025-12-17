@@ -1,0 +1,65 @@
+Shrinkage coefficient will be: condition_100inter_vs_0inter
+==== COUNTS MATRIX ====
+[1] 45328     6
+  HelaS3_0sync_100inter_1_H3K9ac_1 HelaS3_0sync_100inter_1_H3K9ac_2
+1                             4377                             5065
+2                             3846                             4692
+3                             4651                             5821
+4                             2284                             2900
+5                             2163                             2620
+6                             1999                             2430
+  HelaS3_0sync_100inter_1_H3K9ac_3 HelaS3_100sync_0inter_1_H3K9ac_1
+1                             4595                             1702
+2                             4326                             1808
+3                             5467                             2290
+4                             2686                             1162
+5                             2502                             1012
+6                             2259                             1113
+  HelaS3_100sync_0inter_1_H3K9ac_2 HelaS3_100sync_0inter_1_H3K9ac_3
+1                             1588                             1849
+2                             1672                             1912
+3                             2042                             2330
+4                             1053                             1170
+5                              936                             1132
+6                             1041                             1098
+==== COLDATA MATRIX ====
+[1] 6 4
+[1] "biorep"    "antibody"  "condition" "techrep"  
+converting counts to integer mode
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+-- note: fitType='parametric', but the dispersion trend was not well captured by the
+   function: y = a/x + b, and a local regression fit was automatically substituted.
+   specify fitType='local' or 'mean' to avoid this message next time.
+final dispersion estimates
+fitting model and testing
+Default DESeq2 size factors:
+HelaS3_0sync_100inter_1_H3K9ac_1 HelaS3_0sync_100inter_1_H3K9ac_2 
+                       1.2504870                        1.4362936 
+HelaS3_0sync_100inter_1_H3K9ac_3 HelaS3_100sync_0inter_1_H3K9ac_1 
+                       1.3264200                        0.7629147 
+HelaS3_100sync_0inter_1_H3K9ac_2 HelaS3_100sync_0inter_1_H3K9ac_3 
+                       0.7092655                        0.7931731 
+Custom size factors to be used for spike-in normalization:
+HelaS3_0sync_100inter_1_H3K9ac_1 HelaS3_0sync_100inter_1_H3K9ac_2 
+                       0.4823979                        0.7774705 
+HelaS3_0sync_100inter_1_H3K9ac_3 HelaS3_100sync_0inter_1_H3K9ac_1 
+                       0.7123318                        1.3475386 
+HelaS3_100sync_0inter_1_H3K9ac_2 HelaS3_100sync_0inter_1_H3K9ac_3 
+                       1.2225295                        1.7704487 
+using pre-existing size factors
+estimating dispersions
+found already estimated dispersions, replacing these
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+using 'apeglm' for LFC shrinkage. If used in published research, please cite:
+    Zhu, A., Ibrahim, J.G., Love, M.I. (2018) Heavy-tailed prior distributions for
+    sequence count data: removing the noise and preserving large differences.
+    Bioinformatics. https://doi.org/10.1093/bioinformatics/bty895
+Significant UP peaks: 42504
+Significant DOWN peaks: 0
+DESeq2 finished successfully

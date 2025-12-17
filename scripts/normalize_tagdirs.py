@@ -158,12 +158,11 @@ def main():
 
     output_dir = args.output_dir.resolve()
     force_overwrite=args.force_overwrite
+    metadata_file = args.metadata_file or output_dir / "sample_metadata.norm.tsv"
 
     # Construct genome_dirs dictionary
     genome_dirs = {target: output_dir / f"{target_species}_data"}
     genome_dirs[spike] = output_dir / f"{spike}_data"
-
-    metadata_file = args.metadata_file or output_dir / "sample_metadata.norm.tsv"
 
     normalize_tagdirs(metadata_file=metadata_file,
                       target_species=target, spike_species=spikes,
@@ -172,3 +171,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+### NOTES TO ADD: add the commands run as an output/log file
+### add a line in the tagInfo file that records the normalization factor used (and a record that ChIP-wrangler modified it!)
+### add a note that the genoems must be configured with HOMER!! esp spike-ins
